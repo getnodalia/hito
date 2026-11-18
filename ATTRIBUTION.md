@@ -5,7 +5,7 @@ Every asset in this repository, with its author, source and licence. Code is `MI
 
 | Path | What | Author | Source | Licence |
 |---|---|---|---|---|
-| `assets/icons/hito-portrait-1024.png` | App icon artwork: Henry Laurence Gantt (1861–1919), the engineer who drew the first progress charts, cut out in black and white on Hito's green | Nodalia, from a portrait photograph of Gantt taken in the 1910s (photographer unknown) | [Wikimedia Commons: Henry Gantt.jpg](https://commons.wikimedia.org/wiki/File:Henry_Gantt.jpg); made with nodalia-design `tools/app-portrait` | Photograph: public domain (published before 1931). Artwork: MIT OR Apache-2.0 |
+| `assets/icons/hito-portrait-1024.png` | App icon artwork: Lillian Moller Gilbreth (1878–1972), a pioneer of motion study and of how work is planned and measured, cut out in black and white on Hito's green | Nodalia, from a portrait photograph of Gilbreth (Smithsonian Institution) | [Wikimedia Commons: Lillian Moller Gilbreth.jpg](https://commons.wikimedia.org/wiki/File:Lillian_Moller_Gilbreth.jpg); made with nodalia-design `tools/app-portrait` | Photograph: no known restrictions (Smithsonian Institution). Artwork: MIT OR Apache-2.0 |
 | `assets/icons/hicolor/*/apps/dev.danielmiguelt.Hito.png` | App icon at each size (rounded tile of the artwork above) | Nodalia | made from the artwork above | MIT OR Apache-2.0 |
 | `docs/screenshots/*.png` | Screenshots of Hito with demo accounts and projects | Nodalia | taken from the running app | MIT OR Apache-2.0 |
 | `packaging/linux/dev.danielmiguelt.Hito.desktop` | Desktop entry | Nodalia | original work | MIT OR Apache-2.0 |

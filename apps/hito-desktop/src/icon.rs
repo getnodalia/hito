@@ -1,5 +1,5 @@
-//! The app icon: Henry Gantt, who drew the first progress charts, from a public-domain
-//! photograph (Wikimedia Commons), in black and white on Hito's green. The same PNG is the window icon and
+//! The app icon: Lillian Gilbreth, a pioneer of how work is planned and measured, from a
+//! Smithsonian Institution photograph (Wikimedia Commons), in black and white on Hito's green. The same PNG is the window icon and
 //! the logo drawn in the app.
 
 use egui::{ColorImage, TextureHandle, TextureOptions};
@@ -9,7 +9,7 @@ const PNG: &[u8] =
     include_bytes!("../../../assets/icons/hicolor/256x256/apps/dev.danielmiguelt.Hito.png");
 
 /// Who the portrait is and where it comes from, for About.
-pub const CREDIT: &str = "Icon: Henry L. Gantt, from a photograph of the 1910s (public domain).";
+pub const CREDIT: &str = "Icon: Lillian Moller Gilbreth, from a Smithsonian Institution photograph (no known restrictions).";
 
 /// Decode the icon into RGBA pixels: `(width, height, rgba)`.
 pub fn rgba() -> Option<(u32, u32, Vec<u8>)> {
