@@ -17,7 +17,7 @@ use crate::chrome;
 use crate::dialogs::{self, Dialog};
 use crate::i18n::{tr, trf};
 use crate::model::{Connection, Page, Tab};
-use crate::widgets::{avatar, badge, icon, icon_button, progress_bar};
+use crate::widgets::{avatar, badge, icon, icon_button};
 use crate::{detail, pages};
 
 const SIDEBAR: f32 = 260.0;
@@ -219,7 +219,7 @@ fn top_bar(
                 main.focus_search = false;
             }
 
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            crate::widgets::trailing(ui, |ui| {
                 let can_add = main
                     .model
                     .current_projects()
@@ -347,7 +347,7 @@ fn sidebar(ui: &mut Ui, main: &mut Main, look: &Look, actions: &mut Vec<Action>)
                         .strong()
                         .color(color(p.text_secondary)),
                 );
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                crate::widgets::trailing(ui, |ui| {
                     if can_create
                         && icon_button(ui, look, "plus", tr("New project"), false).clicked()
                     {
@@ -470,18 +470,46 @@ fn project_row(
     } else {
         color(p.text_primary)
     };
-    let mut child = ui.new_child(UiBuilder::new().max_rect(rect.shrink2(vec2(10.0, 6.0))));
-    child.horizontal(|ui| {
-        icon(ui, if archived { "archive" } else { "folder" }, 15.0, ink);
-        ui.add_space(4.0);
-        let mut text = RichText::new(name).color(ink);
-        if selected {
-            text = text.strong();
-        }
-        ui.add(egui::Label::new(text).truncate().selectable(false));
-    });
-    child.add_space(2.0);
-    progress_bar(&mut child, look, progress, 0.0, true);
+    // Painted rather than laid out, so the row keeps its height whatever the spacing.
+    let inner = rect.shrink2(vec2(10.0, 7.0));
+    let painter = ui.painter();
+    let glyph = Rect::from_min_size(inner.min + vec2(0.0, 1.0), vec2(15.0, 15.0));
+    if let Some(i) = nodalia_theme::icons::get(if archived { "archive" } else { "folder" }) {
+        nodalia_theme::icons::paint(painter, glyph, i, nodalia_theme::icons::Style::bold(ink));
+    }
+    let font = egui::FontId::proportional(font_size::BODY);
+    let mut job = egui::text::LayoutJob::simple_singleline(name.to_string(), font, ink);
+    job.wrap = egui::text::TextWrapping::truncate_at_width(inner.width() - 22.0);
+    let galley = ui.fonts_mut(|f| f.layout_job(job));
+    painter.galley(pos2(glyph.right() + 7.0, inner.top()), galley, ink);
+    let percent = format!("{} %", progress.percent());
+    let label = painter.layout_no_wrap(
+        percent,
+        egui::FontId::proportional(font_size::SMALL),
+        color(p.text_secondary),
+    );
+    let bar_y = inner.bottom() - 4.0;
+    let bar = Rect::from_min_max(
+        pos2(inner.left(), bar_y - 3.0),
+        pos2(inner.right() - label.size().x - 8.0, bar_y + 3.0),
+    );
+    painter.rect_filled(bar, CornerRadius::same(3), color(p.control_bg_hover));
+    let fraction = progress.fraction().clamp(0.0, 1.0);
+    if fraction > 0.0 {
+        let mut done = bar;
+        done.set_width((bar.width() * fraction).max(6.0));
+        let fill = if progress.complete() {
+            color(p.status_success_fg)
+        } else {
+            color(p.accent_default)
+        };
+        painter.rect_filled(done, CornerRadius::same(3), fill);
+    }
+    painter.galley(
+        pos2(inner.right() - label.size().x, bar_y - label.size().y / 2.0),
+        label,
+        color(p.text_secondary),
+    );
     response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, selected, name));
     response
 }

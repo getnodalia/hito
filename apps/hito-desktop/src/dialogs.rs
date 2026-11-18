@@ -3,7 +3,7 @@
 //! Ágora and other apps) and the two confirmations. Each has the NDL heading with a round close
 //! button. The small form helpers here are shared with the task panel.
 
-use egui::{vec2, Align, Id, Layout, RichText, TextEdit, Ui};
+use egui::{vec2, Id, RichText, TextEdit, Ui};
 use hito_core::{MilestoneId, Priority, ProjectId, Role, Status, TaskId, UserId};
 use hito_protocol::{ActivityKind, Invite};
 use nodalia_theme::creator::{self as cr, layout, Look};
@@ -180,7 +180,7 @@ pub fn show(
                         .strong()
                         .color(color(p.text_primary)),
                 );
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                crate::widgets::trailing(ui, |ui| {
                     let (rect, _) = ui.allocate_exact_size(
                         vec2(layout::CLOSE, layout::CLOSE),
                         egui::Sense::hover(),
@@ -279,7 +279,7 @@ pub fn pick<T: Copy + PartialEq>(
         .iter()
         .find(|(v, _)| *v == *value)
         .map(|(_, n)| n.clone())
-        .unwrap_or_default();
+        .unwrap_or_else(|| "…".to_string());
     egui::ComboBox::from_id_salt(id)
         .selected_text(current)
         .width(ui.available_width().min(260.0))
@@ -334,7 +334,7 @@ pub fn milestones(main: &Main, project: ProjectId) -> Vec<(Option<MilestoneId>, 
 fn buttons(ui: &mut Ui, look: &Look, confirm: &str, enabled: bool) -> (bool, bool) {
     ui.add_space(16.0);
     let mut out = (false, false);
-    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+    crate::widgets::trailing(ui, |ui| {
         out.0 = cr::primary_button(ui, look, confirm, enabled).clicked();
         out.1 = cr::secondary_button(ui, look, tr("Cancel"), true).clicked();
     });
@@ -676,7 +676,7 @@ fn invite_body(
             ),
         );
         ui.add_space(12.0);
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+        crate::widgets::trailing(ui, |ui| {
             if cr::primary_button(ui, look, tr("Copy code"), true).clicked() {
                 actions.push(Action::Copy(i.code.clone()));
             }
@@ -855,7 +855,7 @@ fn integrations(
                 .map(|at| trf("used {}", &[&dates::when(at)]))
                 .unwrap_or_else(|| tr("never used").to_string());
             note(ui, look, &used);
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            crate::widgets::trailing(ui, |ui| {
                 if cr::secondary_button(ui, look, tr("Revoke"), true).clicked() {
                     actions.push(Action::RevokeToken(t.id));
                 }
@@ -921,7 +921,7 @@ fn integrations(
                     .truncate(),
                 );
             });
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            crate::widgets::trailing(ui, |ui| {
                 if cr::secondary_button(ui, look, tr("Delete"), true).clicked() {
                     actions.push(Action::DeleteWebhook(w.id));
                 }
@@ -971,7 +971,7 @@ fn integrations(
     }
     let ok = !d.hook_name.trim().is_empty() && d.hook_url.trim().starts_with("http");
     ui.add_space(8.0);
-    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+    crate::widgets::trailing(ui, |ui| {
         if cr::primary_button(ui, look, tr("Add webhook"), ok).clicked() && ok {
             actions.push(Action::CreateWebhook {
                 name: d.hook_name.trim().to_string(),

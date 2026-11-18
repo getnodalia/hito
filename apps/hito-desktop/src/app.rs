@@ -1017,6 +1017,9 @@ impl Main {
                 self.task = Some(id);
                 self.editor = Some(Editor::of(&task, self.model.task_text.get(&id)));
                 self.comment.clear();
+                if self.model.board(task.project_id).is_none() {
+                    self.load_board(net, task.project_id);
+                }
                 if !self
                     .model
                     .members

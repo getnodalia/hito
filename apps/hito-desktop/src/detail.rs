@@ -1,7 +1,7 @@
 //! The task panel: every field of the open task, saved together, its checklist and its
 //! comments. A task this device cannot open yet is shown read-only until the keys arrive.
 
-use egui::{Align, Layout, RichText, Ui};
+use egui::{RichText, Ui};
 use hito_core::roles::can_delete_comment;
 use hito_protocol::ChecklistItem;
 use nodalia_theme::creator::{self as cr, Look};
@@ -16,6 +16,13 @@ use crate::pages::sealed_title;
 use crate::widgets::{avatar, icon, icon_button, progress_bar};
 
 pub fn show(ui: &mut Ui, main: &mut Main, look: &Look, actions: &mut Vec<Action>) {
+    let inner = ui.max_rect().shrink2(egui::vec2(16.0, 12.0));
+    ui.scope_builder(egui::UiBuilder::new().max_rect(inner), |ui| {
+        panel(ui, main, look, actions)
+    });
+}
+
+fn panel(ui: &mut Ui, main: &mut Main, look: &Look, actions: &mut Vec<Action>) {
     let p = &look.palette;
     let Some(id) = main.task else {
         return;
@@ -36,7 +43,7 @@ pub fn show(ui: &mut Ui, main: &mut Main, look: &Look, actions: &mut Vec<Action>
                 .strong()
                 .color(color(p.text_secondary)),
         );
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+        crate::widgets::trailing(ui, |ui| {
             if icon_button(ui, look, "close", tr("Close"), false).clicked() {
                 actions.push(Action::CloseTask);
             }
@@ -240,7 +247,7 @@ fn comments(ui: &mut Ui, main: &mut Main, look: &Look, actions: &mut Vec<Action>
                     .color(color(p.text_secondary)),
             );
             if role.is_some_and(|r| can_delete_comment(me, c.author.id, r)) {
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                crate::widgets::trailing(ui, |ui| {
                     if icon_button(ui, look, "delete", tr("Delete comment"), false).clicked() {
                         actions.push(Action::DeleteComment(c.id));
                     }

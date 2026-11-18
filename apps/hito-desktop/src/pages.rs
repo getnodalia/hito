@@ -180,43 +180,38 @@ fn overview(ui: &mut Ui, main: &Main, look: &Look, actions: &mut Vec<Action>) {
                     done: acc.done.saturating_add(pr.done),
                 }
             });
-            ui.horizontal_wrapped(|ui| {
-                tile(
-                    ui,
-                    look,
+            let tiles = [
+                (
                     "check-square",
-                    &mine.len().to_string(),
+                    mine.len().to_string(),
                     tr("Open tasks for you"),
-                );
-                tile(
-                    ui,
-                    look,
-                    "warning",
-                    &overdue_mine.to_string(),
-                    tr("Of yours, overdue"),
-                );
-                tile(
-                    ui,
-                    look,
-                    "folder",
-                    &projects.len().to_string(),
-                    tr("Active projects"),
-                );
-                tile(
-                    ui,
-                    look,
+                ),
+                ("warning", overdue_mine.to_string(), tr("Of yours, overdue")),
+                ("folder", projects.len().to_string(), tr("Active projects")),
+                (
                     "flag",
-                    &overdue_all.to_string(),
+                    overdue_all.to_string(),
                     tr("Overdue in the workspace"),
-                );
-                tile(
-                    ui,
-                    look,
+                ),
+                (
                     "chart-bar",
-                    &format!("{} %", total.percent()),
+                    format!("{} %", total.percent()),
                     tr("Done across projects"),
-                );
-            });
+                ),
+            ];
+            let gap = 8.0;
+            let width = ui.available_width();
+            let per_row = ((width + gap) / (150.0 + gap)).floor().clamp(1.0, 5.0) as usize;
+            let tile_width = (width - gap * (per_row as f32 - 1.0)) / per_row as f32;
+            for row in tiles.chunks(per_row) {
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = gap;
+                    for (glyph, value, label) in row {
+                        tile(ui, look, glyph, value, label, tile_width);
+                    }
+                });
+                ui.add_space(gap);
+            }
 
             subheading(ui, look, tr("Projects"));
             if projects.is_empty() {
@@ -243,7 +238,7 @@ fn overview(ui: &mut Ui, main: &Main, look: &Look, actions: &mut Vec<Action>) {
                                     .strong()
                                     .color(color(p.text_primary)),
                             );
-                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            crate::widgets::trailing(ui, |ui| {
                                 if project.overdue > 0 {
                                     let (fg, bg) = (p.status_danger_fg, p.status_danger_bg);
                                     chip(
@@ -292,23 +287,32 @@ fn overview(ui: &mut Ui, main: &Main, look: &Look, actions: &mut Vec<Action>) {
         });
 }
 
-fn tile(ui: &mut Ui, look: &Look, glyph: &str, value: &str, label: &str) {
+fn tile(ui: &mut Ui, look: &Look, glyph: &str, value: &str, label: &str, width: f32) {
     let p = &look.palette;
     cr::island(look)
         .fill(color(p.surface_window))
         .inner_margin(Margin::symmetric(14, 10))
         .show(ui, |ui| {
-            ui.set_width(150.0);
-            ui.horizontal(|ui| {
-                icon(ui, glyph, 16.0, color(p.accent_text));
-                ui.label(
-                    RichText::new(value)
-                        .size(font_size::TITLE)
-                        .strong()
-                        .color(color(p.text_primary)),
+            ui.set_width(width - 28.0);
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    icon(ui, glyph, 16.0, color(p.accent_text));
+                    ui.label(
+                        RichText::new(value)
+                            .size(font_size::TITLE)
+                            .strong()
+                            .color(color(p.text_primary)),
+                    );
+                });
+                ui.add(
+                    egui::Label::new(
+                        RichText::new(label)
+                            .size(font_size::SMALL)
+                            .color(color(p.text_secondary)),
+                    )
+                    .truncate(),
                 );
             });
-            muted(ui, look, label);
         });
 }
 
@@ -403,11 +407,10 @@ fn task_row(
     let ui = &mut child;
     let mut done = task.status.is_done();
     let editable = main.can_edit(task.project_id);
-    if ui
+    let check = ui
         .add_enabled(editable, egui::Checkbox::without_text(&mut done))
-        .on_hover_text(tr("Mark as done"))
-        .changed()
-    {
+        .on_hover_text(tr("Mark as done"));
+    if check.changed() {
         actions.push(Action::MoveTask {
             id: task.id,
             status: if done { Status::Done } else { Status::Todo },
@@ -423,7 +426,7 @@ fn task_row(
         text = text.strikethrough();
     }
     ui.add(egui::Label::new(text).truncate().selectable(false));
-    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+    crate::widgets::trailing(ui, |ui| {
         if let Some(user) = task.assignee_id {
             let name = main.model.name_of(user).unwrap_or("?");
             avatar(ui, look, user.0, name, 22.0, None);
@@ -435,7 +438,7 @@ fn task_row(
             muted(ui, look, project);
         }
     });
-    if response.clicked() {
+    if response.clicked() && !check.clicked() {
         actions.push(Action::OpenTask(task.id));
     }
 }
@@ -473,7 +476,7 @@ fn project(ui: &mut Ui, main: &mut Main, look: &Look, id: ProjectId, actions: &m
                 color(p.control_bg_hover),
             );
         }
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+        crate::widgets::trailing(ui, |ui| {
             if main
                 .role_in(id)
                 .is_some_and(|r| r != hito_core::Role::Guest)
@@ -562,7 +565,7 @@ fn board_view(ui: &mut Ui, main: &mut Main, look: &Look, id: ProjectId, actions:
     let editable = main.can_edit(id);
     let area = ui.available_rect_before_wrap();
     let gap = 10.0;
-    let width = ((area.width() - gap * 3.0) / 4.0).max(200.0);
+    let width = ((area.width() - 1.0 - gap * 3.0) / 4.0).max(200.0);
     let pointer = ui.ctx().pointer_interact_pos();
     let released = ui.input(|i| i.pointer.any_released());
     let mut drop_target: Option<Status> = None;
@@ -585,7 +588,10 @@ fn board_view(ui: &mut Ui, main: &mut Main, look: &Look, id: ProjectId, actions:
                     } else {
                         color(p.surface_window)
                     };
-                    ui.scope_builder(UiBuilder::new().max_rect(column_rect), |ui| {
+                    let builder = UiBuilder::new()
+                        .max_rect(column_rect)
+                        .layout(Layout::top_down(Align::Min));
+                    ui.scope_builder(builder, |ui| {
                         egui::Frame::NONE
                             .fill(fill)
                             .corner_radius(CornerRadius::same(12))
@@ -596,7 +602,6 @@ fn board_view(ui: &mut Ui, main: &mut Main, look: &Look, id: ProjectId, actions:
                                 column(ui, main, look, id, status, editable, actions);
                             });
                     });
-                    ui.allocate_space(vec2(width, 0.0));
                 }
             });
         });
@@ -743,7 +748,7 @@ fn card(
             }
         }
         ui.add_space(4.0);
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             if matches!(task.priority, Priority::High | Priority::Urgent) {
                 chip(
                     ui,
@@ -764,12 +769,10 @@ fn card(
                 icon(ui, "comment", 12.0, color(p.text_secondary));
                 muted(ui, look, &task.comment_count.to_string());
             }
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if let Some(user) = task.assignee_id {
-                    let name = main.model.name_of(user).unwrap_or("?");
-                    avatar(ui, look, user.0, name, 20.0, None);
-                }
-            });
+            if let Some(user) = task.assignee_id {
+                let name = main.model.name_of(user).unwrap_or("?");
+                avatar(ui, look, user.0, name, 20.0, None);
+            }
         });
     });
     let sense = if editable {
@@ -893,7 +896,7 @@ fn milestones_view(
                                 };
                                 chip(ui, &dates::short(due), color(fg), color(bg));
                             }
-                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            crate::widgets::trailing(ui, |ui| {
                                 if editable {
                                     if icon_button(
                                         ui,

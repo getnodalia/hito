@@ -218,19 +218,35 @@ pub fn priority_ink(look: &Look, priority: Priority) -> Color32 {
     }
 }
 
-/// A small rounded label in a colour pair.
+/// A small rounded label in a colour pair, painted at its own height whatever the row's.
 pub fn chip(ui: &mut Ui, text: &str, ink: Color32, fill: Color32) -> Response {
-    Frame::NONE
-        .fill(fill)
-        .corner_radius(CornerRadius::same(9))
-        .inner_margin(Margin::symmetric(7, 1))
-        .show(ui, |ui| {
-            ui.label(
-                RichText::new(text)
-                    .size(font_size::CAPTION)
-                    .color(ink)
-                    .strong(),
-            );
-        })
-        .response
+    let galley = ui.painter().layout_no_wrap(
+        text.to_string(),
+        FontId::proportional(font_size::CAPTION),
+        ink,
+    );
+    let size = galley.size() + vec2(14.0, 4.0);
+    let (rect, response) = ui.allocate_exact_size(size, Sense::hover());
+    ui.painter()
+        .rect_filled(rect, CornerRadius::same((size.y / 2.0) as u8), fill);
+    ui.painter()
+        .galley(rect.center() - galley.size() / 2.0, galley, ink);
+    response
+}
+
+/// Lay out `add` from the right edge, on the current row. `with_layout` would claim the whole
+/// height left in a horizontal row and push the row's height to it.
+pub fn trailing<R>(ui: &mut Ui, add: impl FnOnce(&mut Ui) -> R) -> R {
+    let row = if ui.layout().is_horizontal() {
+        ui.min_rect().height()
+    } else {
+        0.0
+    };
+    let height = row.max(ui.spacing().interact_size.y);
+    ui.allocate_ui_with_layout(
+        vec2(ui.available_width(), height),
+        egui::Layout::right_to_left(egui::Align::Center),
+        add,
+    )
+    .inner
 }
