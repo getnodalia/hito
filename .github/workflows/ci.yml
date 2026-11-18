@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  gate:
+    uses: getnodalia/foundation/.github/workflows/rust-gate.yml@e756876881280ba136ec527be594f616c9a65a5a # foundation main 2026-11-14
+    with:
+      command: >-
+        cargo fmt --all -- --check &&
+        cargo clippy --workspace --all-targets --locked -- -D warnings &&
+        cargo test --workspace --locked
+      packages: pkg-config libxkbcommon-dev libwayland-dev libgl1-mesa-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libfontconfig1-dev
+      targets: ""
+      tools: ""
+  git-sources:
+    uses: getnodalia/foundation/.github/workflows/git-sources.yml@e756876881280ba136ec527be594f616c9a65a5a # foundation main 2026-11-14
+  agents:
+    uses: getnodalia/foundation/.github/workflows/agents-check.yml@e756876881280ba136ec527be594f616c9a65a5a # foundation main 2026-11-14

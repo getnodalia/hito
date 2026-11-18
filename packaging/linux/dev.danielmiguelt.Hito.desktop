@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Hito
+GenericName=Team chat
+GenericName[es]=Chat de equipo
+Comment=Open source, self-hosted team chat
+Comment[es]=Chat de equipo de código abierto y alojado por ti
+Exec=hito
+Icon=dev.danielmiguelt.Hito
+Terminal=false
+Categories=Network;InstantMessaging;Chat;
+Keywords=chat;messages;team;channels;
+StartupWMClass=dev.danielmiguelt.Hito

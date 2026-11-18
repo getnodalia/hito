@@ -1,0 +1,41 @@
+# Hito server settings. Copy to hito.toml and start with: hito-server --config hito.toml
+# Every key is optional; these are the defaults. HITO_BIND, HITO_DATABASE,
+# HITO_REGISTRATION and HITO_TRUST_PROXY override the file.
+
+# Shown to clients on the sign-in screen.
+name = "Hito"
+
+# Address and port. Keep it on loopback and put a TLS reverse proxy in front
+# (docs/deployment.md). The server refuses a public address unless trust_proxy
+# or allow_insecure_public_bind is set.
+bind = "127.0.0.1:7879"
+
+# SQLite database (created if missing).
+database = "sqlite://hito.db"
+
+# Who may create an account: "open", "invite_only" or "closed".
+# A new server requires an initialization token for the first account.
+registration = "open"
+
+# Days a session lasts after signing in.
+session_days = 30
+
+# Behind a reverse proxy that terminates TLS and sets X-Forwarded-For.
+trust_proxy = false
+
+# Listen on a public address without TLS. Passwords would travel in clear text:
+# only for an isolated lab network.
+allow_insecure_public_bind = false
+
+[limits]
+# Sign-in and registration attempts per minute and address.
+auth_per_minute = 10
+# Writes (messages, reactions, edits...) per minute and account.
+writes_per_minute = 120
+# Reads per minute and account.
+reads_per_minute = 1200
+# Open WebSocket connections per account.
+connections_per_user = 16
+# Largest request body, in bytes. An encrypted conversation's GroupInfo grows with its devices
+# (about 300 bytes each), so this also bounds how many devices one conversation can hold.
+max_body_bytes = 1048576

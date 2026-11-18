@@ -1,0 +1,63 @@
+# The hito-server .deb and .rpm (nfpm: https://nfpm.goreleaser.com): the server alone, with its
+# systemd service, a configuration in /etc/hito and the `hito` system user. No desktop libraries.
+# Run by ../package.sh, which substitutes ${STAGE}, @SERVER@ and @GLIBC_FLOOR@.
+name: hito-server
+arch: ${NFPM_ARCH}
+platform: linux
+version: ${VERSION}
+version_schema: semver
+release: 1
+section: net
+priority: optional
+maintainer: ${HITO_MAINTAINER}
+vendor: Nodalia
+homepage: https://getnodalia.com/hito
+license: MIT OR Apache-2.0
+description: |-
+  Hito's server: self-hosted, open-source team chat.
+  One binary with a SQLite file, run by the systemd service hito-server. It stores
+  accounts, metadata and ciphertext; messages are end-to-end encrypted with MLS on
+  the clients. Configuration: /etc/hito/hito.toml. Data: /var/lib/hito.
+
+overrides:
+  deb:
+    depends:
+      - libc6 (>= @GLIBC_FLOOR@)
+      - libgcc-s1
+      - adduser | passwd
+    # Up to 0.1.1 the `hito` package carried /usr/bin/hito-server too.
+    replaces:
+      - hito (<< 0.1.2)
+  rpm:
+    depends:
+      - shadow-utils
+    conflicts:
+      - hito < 0.1.2
+
+deb:
+  breaks:
+    - hito (<< 0.1.2)
+
+contents:
+  - src: ${STAGE}/usr/bin/hito-server
+    dst: /usr/bin/hito-server
+    file_info: { mode: 0755 }
+  - src: @SERVER@/hito-server.service
+    dst: /usr/lib/systemd/system/hito-server.service
+    file_info: { mode: 0644 }
+  - src: @SERVER@/hito.toml
+    dst: /etc/hito/hito.toml
+    type: config|noreplace
+    file_info: { mode: 0640 }
+  - src: @SERVER@/README.md
+    dst: /usr/share/doc/hito-server/README.md
+    file_info: { mode: 0644 }
+  - src: ${STAGE}/usr/share/doc/hito/LICENSE-MIT
+    dst: /usr/share/doc/hito-server/LICENSE-MIT
+  - src: ${STAGE}/usr/share/doc/hito/LICENSE-APACHE
+    dst: /usr/share/doc/hito-server/LICENSE-APACHE
+
+scripts:
+  postinstall: packaging/linux/server/postinst.sh
+  preremove: packaging/linux/server/prerm.sh
+  postremove: packaging/linux/server/postrm.sh

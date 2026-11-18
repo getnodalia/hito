@@ -1,0 +1,23 @@
+[Unit]
+Description=Hito chat server
+Documentation=https://github.com/getnodalia/hito/blob/main/docs/deployment.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hito
+Group=hito
+WorkingDirectory=/var/lib/hito
+ExecStart=/usr/bin/hito-server --config /etc/hito/hito.toml
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ReadWritePaths=/var/lib/hito
+
+[Install]
+WantedBy=multi-user.target
