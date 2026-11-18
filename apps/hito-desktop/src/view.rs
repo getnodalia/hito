@@ -189,6 +189,9 @@ fn top_bar(
                 if ui.button(tr("About Hito")).clicked() {
                     actions.push(Action::Backstage(Some(Backstage::About)));
                 }
+                if ui.button(tr("Check for updates…")).clicked() {
+                    actions.push(Action::CheckForUpdates);
+                }
                 ui.separator();
                 if ui.button(tr("Log out")).clicked() {
                     actions.push(Action::Logout);

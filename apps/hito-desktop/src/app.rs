@@ -42,6 +42,7 @@ pub struct App {
     pub toasts: Vec<Toast>,
     applied: Option<(Theme, bool, bool)>,
     decorated: Option<bool>,
+    updates: crate::updates::Runtime,
     #[cfg(target_os = "linux")]
     menu: Option<crate::linux_menu::GlobalMenu>,
 }
@@ -176,6 +177,8 @@ pub struct Main {
 /// Something a screen asked for.
 #[derive(Clone, Debug)]
 pub enum Action {
+    /// "Check for updates…" in the main menu.
+    CheckForUpdates,
     SelectWorkspace(WorkspaceId),
     ShowPage(Page),
     ShowTab(Tab),
@@ -269,6 +272,7 @@ impl Action {
             "preferences" => Action::Backstage(Some(Backstage::Preferences)),
             "shortcuts" => Action::Backstage(Some(Backstage::Shortcuts)),
             "about" => Action::Backstage(Some(Backstage::About)),
+            "updates" => Action::CheckForUpdates,
             "overview" => Action::ShowPage(Page::Overview),
             "my-tasks" => Action::ShowPage(Page::MyTasks),
             "board" => Action::ShowTab(Tab::Board),
@@ -298,6 +302,7 @@ impl App {
             toasts: Vec::new(),
             applied: None,
             decorated: None,
+            updates: crate::updates::Runtime::default(),
             #[cfg(target_os = "linux")]
             menu: crate::linux_menu::install(
                 &cc.egui_ctx,
@@ -305,6 +310,7 @@ impl App {
             ),
         };
         app.apply_appearance(&cc.egui_ctx);
+        app.updates.start(false);
         if let Some(saved) = settings::load_session(app.dir.as_deref()) {
             app.restore(saved);
         } else {
@@ -596,6 +602,7 @@ impl App {
                     self.toast(tr("Copied."), now);
                 }
                 Action::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                Action::CheckForUpdates => self.updates.start(true),
                 Action::SettingsChanged => {
                     i18n::set(self.settings.language.unwrap_or_else(i18n::Lang::system));
                     self.apply_appearance(ctx);
@@ -1333,6 +1340,7 @@ impl Main {
             Action::Backstage(page) => self.backstage = page,
             Action::Logout
             | Action::Quit
+            | Action::CheckForUpdates
             | Action::SettingsChanged
             | Action::Copy(_)
             | Action::CheckServer
@@ -1410,6 +1418,7 @@ impl eframe::App for App {
         let now = ctx.input(|i| i.time);
         self.handle_replies(now);
         self.apply_appearance(&ctx);
+        self.updates.tick(&ctx);
 
         let decorated = !self.ndl_controls();
         if self.decorated != Some(decorated) {
@@ -1431,12 +1440,14 @@ impl eframe::App for App {
             for id in menu.take() {
                 match Action::from_menu(id) {
                     Some(Action::Quit) => actions.push(Action::Quit),
+                    Some(Action::CheckForUpdates) => actions.push(Action::CheckForUpdates),
                     Some(a) if signed_in => actions.push(a),
                     Some(Action::Backstage(_)) | Some(_) | None => {}
                 }
             }
         }
         self.act(&ctx, actions, now);
+        self.updates.show(&ctx);
 
         // Toasts expire on their own: wake up to remove them.
         ctx.request_repaint_after(std::time::Duration::from_secs(1));

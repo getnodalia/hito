@@ -31,6 +31,23 @@ pub struct Config {
     /// webhook deliveries. Optional.
     pub public_url: Option<String>,
     pub limits: Limits,
+    pub updates: Updates,
+}
+
+/// Self-updates: `hito-server self-update --auto`, which the `hito-server-update.timer`
+/// systemd timer runs once a day.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Updates {
+    /// Install new stable releases automatically. `false` makes the timer do nothing; a manual
+    /// `hito-server self-update` still works.
+    pub automatic: bool,
+}
+
+impl Default for Updates {
+    fn default() -> Self {
+        Self { automatic: true }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
@@ -91,6 +108,7 @@ impl Default for Config {
             allow_insecure_public_bind: false,
             public_url: None,
             limits: Limits::default(),
+            updates: Updates::default(),
         }
     }
 }

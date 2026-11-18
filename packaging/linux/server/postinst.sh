@@ -31,5 +31,10 @@ if [ -d /run/systemd/system ]; then
     *)
       systemctl try-restart hito-server.service || true ;;
   esac
+  # The daily self-update timer, enabled once: a timer someone disabled stays disabled.
+  if [ ! -e /var/lib/hito/.update-timer-enabled ]; then
+    systemctl enable --now hito-server-update.timer || true
+    touch /var/lib/hito/.update-timer-enabled
+  fi
 fi
 exit 0

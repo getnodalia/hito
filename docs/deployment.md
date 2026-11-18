@@ -121,11 +121,30 @@ contains sensitive data and needs independent protection and a tested restore pr
 
 ## Upgrading
 
-Back up, then install the new release the way you installed the old one (`./install.sh` again,
-or the new package). Migrations run on start and only move forward.
+The server updates itself. The `.deb`, the `.rpm` and `install.sh` enable the systemd timer
+`hito-server-update.timer`, which once a day (around 04:00, spread over two hours) runs
+`hito-server self-update --auto` as root. It:
+
+1. reads the newest stable release from `github.com/getnodalia/hito/releases/latest` (a web
+   redirect, so GitHub's limit on anonymous API calls does not apply);
+2. stops if it is not newer than the installed version;
+3. downloads the package for this installation (`.deb`, `.rpm`, or the `.tar.gz` that
+   `install.sh` came from) and checks it against the release's `SHA256SUMS`;
+4. snapshots the database, and the 2FA key file beside it, to `backups/before-update-*.db` next to
+   the database (the last three are kept);
+5. installs it (`dpkg -i`, `rpm -U`, or a swap of the binary that keeps the old one as
+   `hito-server.previous`) and restarts the service;
+6. waits for `/healthz`. A `.tar.gz` install whose new version does not answer gets the previous
+   binary back.
+
+See what it did with `journalctl -u hito-server-update`. To update by hand instead, set
+`automatic = false` under `[updates]` in `/etc/hito/hito.toml` (or run
+`sudo systemctl disable --now hito-server-update.timer`), and run
+`sudo hito-server --config /etc/hito/hito.toml self-update` when you choose. Installing the new
+release the way you installed the old one (`./install.sh` again, or the new package) also works.
+Migrations run on start and only move forward.
 
 To check whether a newer stable release exists without changing the installation, run
 `hito-server check-updates`. This command queries the public GitHub releases API over HTTPS;
 it does not start the server, access the database, download an executable or install updates.
 It requires network access and can fail if GitHub is unreachable or rate-limits the request.
-Automatic installation is not yet implemented.

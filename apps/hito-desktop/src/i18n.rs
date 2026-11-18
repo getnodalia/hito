@@ -145,6 +145,7 @@ const SPANISH: &[(&str, &str)] = &[
     ("Build", "Construir"),
     ("Build the first version", "Construir la primera versión"),
     ("Cancel", "Cancelar"),
+    ("Check for updates…", "Buscar actualizaciones…"),
     ("Checklist", "Lista de comprobación"),
     ("Client project", "Proyecto de cliente"),
     ("Client review", "Revisión del cliente"),

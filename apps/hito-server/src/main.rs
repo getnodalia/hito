@@ -6,16 +6,20 @@ use std::process::ExitCode;
 use hito_server::Config;
 use tracing_subscriber::EnvFilter;
 
+mod self_update;
 mod update_check;
 
 const HELP: &str = "hito-server: Hito's self-hostable server
 
 USAGE:
-    hito-server [--config FILE] [init-token | check-updates | backup FILE]
+    hito-server [--config FILE] [init-token | check-updates | self-update [--auto] | backup FILE]
 
 OPTIONS:
     init-token          Create a one-use setup token, valid for 15 minutes
     check-updates       Check the latest stable release (does not install it)
+    self-update         Install the latest stable release (as root): verify it, back up the
+                        database, install, restart and check /healthz. With --auto (the
+                        hito-server-update.timer) it does nothing if [updates] automatic = false
     backup FILE         Create a consistent SQLite snapshot at a new path
     -c, --config FILE   TOML configuration (see docs/deployment.md)
     -h, --help          Print this help
@@ -36,10 +40,14 @@ fn main() -> ExitCode {
     let mut init_token = false;
     let mut check_updates = false;
     let mut backup_path = None;
+    let mut self_update = false;
+    let mut auto = false;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "init-token" if !init_token => init_token = true,
             "check-updates" if !check_updates => check_updates = true,
+            "self-update" if !self_update => self_update = true,
+            "--auto" if self_update && !auto => auto = true,
             "backup" if backup_path.is_none() => match args.next() {
                 Some(p) => backup_path = Some(PathBuf::from(p)),
                 None => {
@@ -69,8 +77,13 @@ fn main() -> ExitCode {
         }
     }
 
-    if u8::from(init_token) + u8::from(check_updates) + u8::from(backup_path.is_some()) > 1 {
-        eprintln!("choose only one of init-token, check-updates or backup");
+    if u8::from(init_token)
+        + u8::from(check_updates)
+        + u8::from(self_update)
+        + u8::from(backup_path.is_some())
+        > 1
+    {
+        eprintln!("choose only one of init-token, check-updates, self-update or backup");
         return ExitCode::from(2);
     }
 
@@ -120,6 +133,18 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    if self_update {
+        return match runtime.block_on(self_update::run(&config, auto)) {
+            Ok(message) => {
+                println!("{message}");
+                ExitCode::SUCCESS
+            }
+            Err(e) => {
+                eprintln!("hito-server: self-update failed: {e}");
+                ExitCode::FAILURE
+            }
+        };
+    }
     let result: Result<(), Box<dyn std::error::Error>> = if let Some(path) = backup_path {
         match runtime.block_on(hito_storage::backup::create(&config.database, &path)) {
             Ok(()) => {

@@ -4,6 +4,7 @@
 case "${1:-}" in
   remove | purge | 0)
     if [ -d /run/systemd/system ]; then
+      systemctl disable --now hito-server-update.timer >/dev/null 2>&1 || true
       systemctl disable --now hito-server.service >/dev/null 2>&1 || true
     fi ;;
 esac

@@ -68,5 +68,7 @@ invitation from a workspace owner.
 | --- | --- |
 | Logs | `journalctl -u hito-server -f` |
 | Restart after a configuration change | `sudo systemctl restart hito-server` |
-| Upgrade | unpack the new release and run `sudo ./install.sh` again (migrations run on start) |
+| Upgrade | automatic: `hito-server-update.timer` installs each new release once a day, after a database backup (`journalctl -u hito-server-update`) |
+| Upgrade now | `sudo hito-server --config /etc/hito/hito.toml self-update` |
+| Turn automatic upgrades off | `automatic = false` under `[updates]` in `/etc/hito/hito.toml` |
 | Everything else | https://github.com/getnodalia/hito/blob/main/docs/deployment.md |

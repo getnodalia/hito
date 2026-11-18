@@ -31,6 +31,7 @@ mod pages;
 mod settings;
 mod signin;
 mod templates;
+mod updates;
 mod view;
 mod widgets;
 

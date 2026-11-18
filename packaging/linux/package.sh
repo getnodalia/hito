@@ -117,6 +117,7 @@ if has server; then
   install -m755 "$STAGE/usr/bin/hito-server" "$SDIR/hito-server"
   install -m755 "$HERE/server/install.sh" "$SDIR/install.sh"
   install -m644 "$HERE/server/hito.toml" "$HERE/server/hito-server.service" \
+    "$HERE/server/hito-server-update.service" "$HERE/server/hito-server-update.timer" \
     "$HERE/server/README.md" "$ROOT/LICENSE-MIT" "$ROOT/LICENSE-APACHE" "$SDIR/"
   tar -C "$WORK/server" -czf "$DIST/$SERVER_BASENAME.tar.gz" "$SERVER_BASENAME"
   cp "$DIST/$SERVER_BASENAME.tar.gz" "$DIST/hito-server-linux-$ARCH.tar.gz"

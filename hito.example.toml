@@ -39,3 +39,9 @@ connections_per_user = 16
 # Largest request body, in bytes. An encrypted conversation's GroupInfo grows with its devices
 # (about 300 bytes each), so this also bounds how many devices one conversation can hold.
 max_body_bytes = 1048576
+
+[updates]
+# Install new stable releases by themselves: the hito-server-update.timer checks once a day,
+# backs up the database, installs the verified package and restarts the server. Set false to
+# update by hand (sudo hito-server --config /etc/hito/hito.toml self-update).
+automatic = true
