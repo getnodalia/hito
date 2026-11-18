@@ -211,9 +211,41 @@ pub fn server_url(value: &str) -> Result<String, ValidationError> {
     }
 }
 
+/// A webhook signing key chosen by the receiver: printable ASCII, no spaces.
+pub fn webhook_secret(value: &str) -> Result<String, ValidationError> {
+    let field = "secret";
+    let v = value.trim();
+    if chars(v) < WEBHOOK_SECRET_MIN {
+        return Err(ValidationError::TooShort {
+            field,
+            min: WEBHOOK_SECRET_MIN,
+        });
+    }
+    if chars(v) > WEBHOOK_SECRET_MAX {
+        return Err(ValidationError::TooLong {
+            field,
+            max: WEBHOOK_SECRET_MAX,
+        });
+    }
+    if !v.chars().all(|c| c.is_ascii_graphic()) {
+        return Err(ValidationError::BadCharacters { field });
+    }
+    Ok(v.to_owned())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn webhook_secrets_are_printable_ascii_of_a_sane_length() {
+        let hex = "0123456789abcdef".repeat(4);
+        assert_eq!(webhook_secret(&format!(" {hex} ")).unwrap(), hex);
+        assert!(webhook_secret("short").is_err());
+        assert!(webhook_secret(&"a".repeat(WEBHOOK_SECRET_MAX + 1)).is_err());
+        assert!(webhook_secret("with a space inside it, too").is_err());
+        assert!(webhook_secret("clave-con-ñ-0123456789").is_err());
+    }
 
     #[test]
     fn usernames_are_lower_case_ascii() {

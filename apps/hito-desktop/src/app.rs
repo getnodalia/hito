@@ -240,6 +240,7 @@ pub enum Action {
         url: String,
         project: Option<ProjectId>,
         events: Vec<ActivityKind>,
+        secret: String,
     },
     DeleteWebhook(IntegrationId),
     OlderActivity(ProjectId),
@@ -793,6 +794,7 @@ impl Main {
                     d.secret = Some(created.secret);
                     d.hook_name.clear();
                     d.hook_url.clear();
+                    d.hook_secret.clear();
                 }
             }
             Reply::Done(result) => result?,
@@ -1292,6 +1294,7 @@ impl Main {
                 url,
                 project,
                 events,
+                secret,
             } => {
                 let Some(ws) = self.model.workspace else {
                     return;
@@ -1302,6 +1305,7 @@ impl Main {
                     url,
                     project_id: project,
                     events,
+                    secret: Some(secret).filter(|s| !s.is_empty()),
                 };
                 net.run(
                     async move { Reply::WebhookCreated(client.create_webhook(ws, &request).await) },

@@ -408,6 +408,9 @@ async fn api_tokens_see_metadata_and_cannot_manage_the_account() {
     server.stop().await;
 }
 
+/// What Ágora hands out: 64 hexadecimal characters, used as the signing key as written.
+const AGORA_KEY: &str = "9f2c41d07a6be3158c0d94a7e21b5f8366d0a4c9e7b12358f4a60d9c3e1b7a52";
+
 #[tokio::test]
 async fn webhooks_carry_signed_metadata_and_no_text() {
     use axum::body::Bytes;
@@ -442,6 +445,7 @@ async fn webhooks_carry_signed_metadata_and_no_text() {
                 url: format!("http://{addr}/hook"),
                 project_id: None,
                 events: Vec::new(),
+                secret: None,
             },
         )
         .await
@@ -455,6 +459,7 @@ async fn webhooks_carry_signed_metadata_and_no_text() {
                 url: format!("http://{addr}/hook"),
                 project_id: None,
                 events: vec![hito_protocol::ActivityKind::TaskCreated],
+                secret: Some(AGORA_KEY.into()),
             },
         )
         .await
@@ -471,10 +476,25 @@ async fn webhooks_carry_signed_metadata_and_no_text() {
         .unwrap()
         .to_str()
         .unwrap();
+    assert_eq!(hook.secret, AGORA_KEY, "the receiver's key is the one used");
     assert_eq!(
         signature,
-        hito_server::webhooks::signature(&hook.secret, &body)
+        hito_server::webhooks::signature(AGORA_KEY, &body)
     );
+    let refused_key = ana
+        .create_webhook(
+            ws.id,
+            &CreateWebhookRequest {
+                name: "Short".into(),
+                url: format!("http://{addr}/hook"),
+                project_id: None,
+                events: Vec::new(),
+                secret: Some("too short".into()),
+            },
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(refused_key.code(), Some(ErrorCode::Invalid));
     let payload: hito_protocol::WebhookPayload = serde_json::from_slice(&body).unwrap();
     assert_eq!(payload.event, hito_protocol::ActivityKind::TaskCreated);
     assert_eq!(payload.project.name, "Ventas");

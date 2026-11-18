@@ -20,6 +20,9 @@ pub const CHECKLIST_ITEM_MAX: usize = 200;
 pub const CHECKLIST_MAX: usize = 100;
 pub const TOKEN_NAME_MAX: usize = 64;
 pub const URL_MAX: usize = 512;
+/// A webhook signing key the receiver chose (Ágora hands out 64 hexadecimal characters).
+pub const WEBHOOK_SECRET_MIN: usize = 16;
+pub const WEBHOOK_SECRET_MAX: usize = 128;
 /// Tasks one project may hold. Generous, but a bound: the board loads a project at once.
 pub const TASKS_PER_PROJECT_MAX: u32 = 5_000;
 pub const PROJECTS_PER_WORKSPACE_MAX: u32 = 1_000;

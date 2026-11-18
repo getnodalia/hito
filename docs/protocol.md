@@ -53,7 +53,7 @@ Everything else (statuses, priorities, dates, ids, ranks) is plain JSON.
 | `POST /tasks/{id}/move` | `{status, after?, before?}`: move a card to a column and between two others |
 | `GET /tasks/{id}/comments`, `POST …` | Comments, oldest first; add one (`{body}`) |
 | `DELETE /comments/{id}` | Delete a comment (its author, or an admin) |
-| `GET /workspaces/{id}/webhooks`, `POST …` | Webhooks; create one (`{name, url, project_id?, events}` → its secret, shown once). Admins |
+| `GET /workspaces/{id}/webhooks`, `POST …` | Webhooks; create one (`{name, url, project_id?, events, secret?}` → its secret, shown once; pass `secret`, 16 to 128 printable ASCII characters, when the receiver hands out its own key, as Ágora does). Admins |
 | `DELETE /webhooks/{id}` | Delete a webhook |
 
 ### End-to-end encryption

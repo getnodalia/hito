@@ -573,6 +573,10 @@ pub struct CreateWebhookRequest {
     pub project_id: Option<ProjectId>,
     #[serde(default)]
     pub events: Vec<ActivityKind>,
+    /// The key to sign deliveries with, for a receiver that hands one out (Ágora does). Empty:
+    /// the server makes a random one. 16 to 128 printable ASCII characters.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub secret: Option<String>,
 }
 
 /// A new webhook. `secret` (to check signatures) is shown once.

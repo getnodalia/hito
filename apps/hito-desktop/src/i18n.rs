@@ -313,6 +313,7 @@ const SPANISH: &[(&str, &str)] = &[
     ("Sign in", "Iniciar sesión"),
     ("Sign in to Hito", "Inicia sesión en Hito"),
     ("Signed out. Sign in again.", "Sesión cerrada. Vuelve a iniciar sesión."),
+    ("Signing key (optional)", "Clave de firma (opcional)"),
     ("Someone", "Alguien"),
     ("Someone changed this task while you were editing it. It shows their version now.", "Alguien cambió esta tarea mientras la editabas. Ahora se muestra su versión."),
     ("Sprint planning", "Planificación del sprint"),

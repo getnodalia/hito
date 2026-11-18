@@ -65,7 +65,10 @@ pub async fn create(
     let mut events = req.events.clone();
     events.sort_by_key(|e| e.as_str());
     events.dedup();
-    let secret = auth::random_token(32);
+    let secret = match req.secret.as_deref().map(str::trim) {
+        Some(given) if !given.is_empty() => validate::webhook_secret(given)?,
+        _ => auth::random_token(32),
+    };
     let row = state
         .store
         .create_webhook(

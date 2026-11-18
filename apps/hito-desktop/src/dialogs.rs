@@ -25,6 +25,8 @@ pub struct Integrations {
     pub token_name: String,
     pub hook_name: String,
     pub hook_url: String,
+    /// The key the receiver gave, when it hands one out; empty lets the server choose.
+    pub hook_secret: String,
     pub hook_project: Option<ProjectId>,
     /// The activity to send; empty sends all of it.
     pub hook_events: Vec<ActivityKind>,
@@ -932,6 +934,8 @@ fn integrations(
     field(ui, look, &mut d.hook_name, tr("Ágora #product"), false);
     label(ui, look, tr("Address"));
     field(ui, look, &mut d.hook_url, "https://", false);
+    label(ui, look, tr("Signing key (optional)"));
+    field(ui, look, &mut d.hook_secret, "", false);
     label(ui, look, tr("Project"));
     let mut projects = vec![(None, tr("Every project").to_string())];
     projects.extend(
@@ -978,6 +982,7 @@ fn integrations(
                 url: d.hook_url.trim().to_string(),
                 project: d.hook_project,
                 events: d.hook_events.clone(),
+                secret: d.hook_secret.trim().to_string(),
             });
         }
     });
