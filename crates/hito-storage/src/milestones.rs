@@ -117,10 +117,10 @@ impl Store {
         let row = sqlx::query(
             "SELECT project_id, content, content_key, due_at FROM milestones WHERE id = ?",
         )
-            .bind(id.0)
-            .fetch_optional(&mut *tx)
-            .await?
-            .ok_or(StoreError::NotFound)?;
+        .bind(id.0)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or(StoreError::NotFound)?;
         let project = ProjectId(row.try_get("project_id")?);
         let old = rows::sealed(&row, "content", "content_key")?;
         let old_due: Option<i64> = row.try_get("due_at")?;
@@ -165,10 +165,10 @@ impl Store {
         let row = sqlx::query(
             "DELETE FROM milestones WHERE id = ? RETURNING project_id, content, content_key",
         )
-            .bind(id.0)
-            .fetch_optional(&mut *tx)
-            .await?
-            .ok_or(StoreError::NotFound)?;
+        .bind(id.0)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or(StoreError::NotFound)?;
         let project = ProjectId(row.try_get("project_id")?);
         let content = rows::sealed(&row, "content", "content_key")?;
         let activity = log(

@@ -1,12 +1,12 @@
 //! Every handler returns [`AppError`] on failure: a status code and a JSON [`ApiError`]. Internal
 //! failures are logged with their cause and shown to the client without it.
 
-use hito_core::ValidationError;
-use hito_protocol::{ApiError, ErrorCode};
-use hito_storage::StoreError;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
+use hito_core::ValidationError;
+use hito_protocol::{ApiError, ErrorCode};
+use hito_storage::StoreError;
 
 #[derive(Debug)]
 pub struct AppError {
@@ -58,7 +58,7 @@ impl AppError {
         Self::new(
             StatusCode::CONFLICT,
             ErrorCode::StaleEpoch,
-            "the conversation's encryption moved on; catch up and encrypt again",
+            "the project's encryption moved on; catch up and try again",
         )
     }
     pub fn internal() -> Self {
@@ -89,6 +89,10 @@ impl From<StoreError> for AppError {
                 "server initialization is not authorized or already completed",
             ),
             StoreError::StaleEpoch => AppError::stale_epoch(),
+            StoreError::Stale => {
+                AppError::conflict("someone else changed it first; reload it and try again")
+            }
+            StoreError::Limit => AppError::conflict("a limit was reached; delete something first"),
             StoreError::InviteExhausted => AppError::new(
                 StatusCode::GONE,
                 ErrorCode::NotFound,

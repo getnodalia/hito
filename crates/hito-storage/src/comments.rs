@@ -56,11 +56,13 @@ impl Store {
         now: Timestamp,
     ) -> Result<(ProjectId, Comment, Activity)> {
         let mut tx = self.pool.begin().await?;
-        let row = sqlx::query("SELECT project_id, milestone_id, content, content_key FROM tasks WHERE id = ?")
-            .bind(task.0)
-            .fetch_optional(&mut *tx)
-            .await?
-            .ok_or(StoreError::NotFound)?;
+        let row = sqlx::query(
+            "SELECT project_id, milestone_id, content, content_key FROM tasks WHERE id = ?",
+        )
+        .bind(task.0)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or(StoreError::NotFound)?;
         let project = ProjectId(row.try_get("project_id")?);
         let milestone: Option<i64> = row.try_get("milestone_id")?;
         let subject = rows::sealed(&row, "content", "content_key")?;

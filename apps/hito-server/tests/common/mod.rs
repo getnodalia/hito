@@ -4,9 +4,11 @@
 
 use std::time::Duration;
 
-use hito_client::{connect, new_nonce, parse_server_url, Client, Realtime, RealtimeEvent, Secure};
-use hito_core::{ChannelId, MessageId};
-use hito_protocol::{Message, MessagePage, RegisterRequest, ServerEvent, Thread, User};
+use hito_client::{connect, parse_server_url, Client, Realtime, RealtimeEvent, Secure};
+use hito_core::ProjectId;
+use hito_protocol::{
+    Comment, CreateTaskRequest, RegisterRequest, ServerEvent, Task, TaskContent, User,
+};
 use hito_server::config::{Config, RegistrationPolicy};
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
@@ -151,51 +153,46 @@ impl Person {
         Person::new(client, session.user).await
     }
 
-    pub async fn try_say(&self, channel: ChannelId, body: &str) -> hito_client::Result<Message> {
-        self.e2e
-            .post(channel, body, &new_nonce(), None, Vec::new())
+    /// Create a task with `title`, sealed on this device.
+    pub async fn try_task(&self, project: ProjectId, title: &str) -> hito_client::Result<Task> {
+        let content = self
+            .e2e
+            .seal_task(
+                project,
+                &TaskContent {
+                    title: title.into(),
+                    ..TaskContent::default()
+                },
+            )
+            .await?;
+        self.client
+            .create_task(
+                project,
+                &CreateTaskRequest {
+                    content,
+                    status: None,
+                    priority: None,
+                    assignee_id: None,
+                    milestone_id: None,
+                    due_at: None,
+                },
+            )
             .await
     }
 
-    pub async fn say(&self, channel: ChannelId, body: &str) -> Message {
-        self.try_say(channel, body).await.unwrap()
+    pub async fn task(&self, project: ProjectId, title: &str) -> Task {
+        self.try_task(project, title).await.unwrap()
     }
 
-    pub async fn reply(&self, channel: ChannelId, root: MessageId, body: &str) -> Message {
-        self.e2e
-            .post(channel, body, &new_nonce(), Some(root), Vec::new())
-            .await
-            .unwrap()
+    /// What this device makes of a task: catch up with the project, then open it.
+    pub async fn title(&self, task: &Task) -> Option<String> {
+        self.e2e.sync(task.project_id).await.unwrap();
+        self.e2e.task_content(task).await.map(|c| c.title)
     }
 
-    pub async fn edit(&self, message: &Message, body: &str) -> hito_client::Result<Message> {
-        self.e2e.edit(message, body, Vec::new()).await
-    }
-
-    /// What this device makes of a message that arrived: catch up, then decrypt.
-    pub async fn read(&self, mut message: Message) -> Message {
-        self.e2e.sync(message.channel_id).await.unwrap();
-        self.e2e.fill_one(&mut message).await;
-        message
-    }
-
-    pub async fn history(&self, channel: ChannelId) -> MessagePage {
-        let mut page = self
-            .client
-            .history(channel, None, None, None)
-            .await
-            .unwrap();
-        self.e2e.sync(channel).await.unwrap();
-        self.e2e.fill(&mut page.messages).await;
-        page
-    }
-
-    pub async fn thread(&self, root: MessageId) -> Thread {
-        let mut thread = self.client.thread(root).await.unwrap();
-        self.e2e.sync(thread.root.channel_id).await.unwrap();
-        self.e2e.fill_one(&mut thread.root).await;
-        self.e2e.fill(&mut thread.replies).await;
-        thread
+    pub async fn comment(&self, task: &Task, body: &str) -> Comment {
+        let sealed = self.e2e.seal_comment(task.project_id, body).await.unwrap();
+        self.client.post_comment(task.id, sealed).await.unwrap()
     }
 }
 

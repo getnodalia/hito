@@ -62,6 +62,8 @@ pub enum ErrorCode {
     RegistrationClosed,
     /// The server failed; the details are in its log.
     Internal,
+    /// The project's encryption moved to a new epoch: catch up on its log and try again.
+    StaleEpoch,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -318,6 +320,19 @@ pub struct Milestone {
     pub created_at: Timestamp,
 }
 
+impl Milestone {
+    /// The milestone with its sealed content emptied, for receivers that have no project keys.
+    pub fn without_content(self) -> Milestone {
+        Milestone {
+            content: Sealed {
+                key_id: 0,
+                data: String::new(),
+            },
+            ..self
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CreateMilestoneRequest {
     pub content: Sealed,
@@ -393,6 +408,19 @@ pub struct UpdateTaskRequest {
     pub milestone_id: Option<MilestoneId>,
     pub due_at: Option<Timestamp>,
     pub revision: i64,
+}
+
+impl Task {
+    /// The task with its sealed content emptied, for receivers that have no project keys.
+    pub fn without_content(self) -> Task {
+        Task {
+            content: Sealed {
+                key_id: 0,
+                data: String::new(),
+            },
+            ..self
+        }
+    }
 }
 
 /// Move a task on the board: to a column, between two neighbours (either may be missing at the
@@ -709,7 +737,9 @@ pub struct ShareKeysRequest {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ClientFrame {
     /// Must be the first frame, within [`WS_AUTH_TIMEOUT_SECS`].
-    Auth { token: String },
+    Auth {
+        token: String,
+    },
     Ping,
 }
 
@@ -718,22 +748,33 @@ pub enum ClientFrame {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ServerEvent {
     /// Authentication succeeded; events follow.
-    Ready { user: User },
+    Ready {
+        user: User,
+    },
     /// A fatal error; the server closes the socket after it.
-    Error { code: ErrorCode, message: String },
+    Error {
+        code: ErrorCode,
+        message: String,
+    },
     /// A project was created or changed, or its progress moved.
-    ProjectChanged { project: Project },
+    ProjectChanged {
+        project: Project,
+    },
     /// The caller can no longer see this project.
     ProjectRemoved {
         workspace_id: WorkspaceId,
         project_id: ProjectId,
     },
-    MilestoneChanged { milestone: Milestone },
+    MilestoneChanged {
+        milestone: Milestone,
+    },
     MilestoneDeleted {
         project_id: ProjectId,
         milestone_id: MilestoneId,
     },
-    TaskChanged { task: Task },
+    TaskChanged {
+        task: Task,
+    },
     TaskDeleted {
         project_id: ProjectId,
         task_id: TaskId,
@@ -747,15 +788,22 @@ pub enum ServerEvent {
         task_id: TaskId,
         comment_id: CommentId,
     },
-    Activity { activity: Activity },
+    Activity {
+        activity: Activity,
+    },
     /// A project's encrypted log has a new entry: devices joined or left, or keys arrived.
-    MlsChanged { project_id: ProjectId },
+    MlsChanged {
+        project_id: ProjectId,
+    },
     /// Someone joined a workspace the caller belongs to.
     MemberJoined {
         workspace_id: WorkspaceId,
         member: Member,
     },
-    Presence { user_id: UserId, online: bool },
+    Presence {
+        user_id: UserId,
+        online: bool,
+    },
     Pong,
 }
 
@@ -781,7 +829,10 @@ mod tests {
             task_id: TaskId(7),
         };
         let json = serde_json::to_string(&e).unwrap();
-        assert_eq!(json, r#"{"type":"task_deleted","project_id":2,"task_id":7}"#);
+        assert_eq!(
+            json,
+            r#"{"type":"task_deleted","project_id":2,"task_id":7}"#
+        );
         assert_eq!(serde_json::from_str::<ServerEvent>(&json).unwrap(), e);
     }
 

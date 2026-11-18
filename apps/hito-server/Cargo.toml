@@ -20,10 +20,8 @@ hito-core.workspace = true
 hito-protocol.workspace = true
 hito-storage.workspace = true
 argon2.workspace = true
-aes = { version = "0.8", features = ["zeroize"] }
-aes-gcm = { version = "0.10", features = ["zeroize"] }
-totp-rs = { version = "6", default-features = false, features = ["std", "zeroize"] }
-zeroize = "1"
+hito-e2e.workspace = true
+hmac = "0.12"
 axum.workspace = true
 base64.workspace = true
 futures-util.workspace = true

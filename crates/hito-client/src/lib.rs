@@ -7,7 +7,10 @@
 pub mod realtime;
 pub mod secure;
 
-use hito_core::{ChannelId, MessageId, OrganizationId, UserId, WorkspaceId};
+use hito_core::{
+    ActivityId, CommentId, IntegrationId, MilestoneId, ProjectId, TaskId, TokenId, UserId,
+    WorkspaceId,
+};
 use hito_protocol::*;
 use reqwest::{Method, StatusCode};
 use serde::de::DeserializeOwned;
@@ -49,7 +52,7 @@ impl ClientError {
 
 pub type Result<T> = std::result::Result<T, ClientError>;
 
-/// Parse what a person typed as a server address: `chat.example.com`, `localhost:7878`,
+/// Parse what a person typed as a server address: `chat.example.com`, `localhost:7879`,
 /// `https://chat.example.com/`. Without a scheme, loopback hosts get `http`, others `https`.
 pub fn parse_server_url(input: &str) -> Result<Url> {
     let input = input.trim().trim_end_matches('/');
@@ -236,51 +239,25 @@ impl Client {
         self.send(Method::PATCH, self.url("/me")?, Some(&req)).await
     }
 
-    // Organizations --------------------------------------------------------------------------
+    // API tokens ------------------------------------------------------------------------------
 
-    pub async fn organizations(&self) -> Result<Vec<Organization>> {
-        self.get("/organizations").await
+    pub async fn tokens(&self) -> Result<Vec<ApiToken>> {
+        self.get("/me/tokens").await
     }
-    pub async fn create_organization(&self, name: &str) -> Result<Organization> {
+
+    /// Create an API token. Its text is in the answer once and never again.
+    pub async fn create_token(&self, name: &str) -> Result<CreatedToken> {
         self.post(
-            "/organizations",
-            &CreateOrganizationRequest {
+            "/me/tokens",
+            &CreateTokenRequest {
                 name: name.to_owned(),
             },
         )
         .await
     }
-    pub async fn organization_workspaces(&self, org: OrganizationId) -> Result<Vec<Workspace>> {
-        self.get(&format!("/organizations/{org}/workspaces")).await
-    }
-    pub async fn create_organization_workspace(
-        &self,
-        org: OrganizationId,
-        name: &str,
-    ) -> Result<Workspace> {
-        self.post(
-            &format!("/organizations/{org}/workspaces"),
-            &CreateWorkspaceRequest {
-                name: name.to_owned(),
-            },
-        )
-        .await
-    }
-    pub async fn organization_members(&self, org: OrganizationId) -> Result<Vec<Member>> {
-        self.get(&format!("/organizations/{org}/members")).await
-    }
-    pub async fn set_organization_member(
-        &self,
-        org: OrganizationId,
-        user: UserId,
-        role: hito_core::Role,
-    ) -> Result<()> {
-        self.send(
-            Method::PUT,
-            self.url(&format!("/organizations/{org}/members/{user}"))?,
-            Some(&SetOrganizationMemberRequest { role }),
-        )
-        .await
+
+    pub async fn revoke_token(&self, id: TokenId) -> Result<()> {
+        self.delete(&format!("/me/tokens/{id}")).await
     }
 
     // Workspaces ------------------------------------------------------------------------------
@@ -321,90 +298,87 @@ impl Client {
         .await
     }
 
-    // Channels --------------------------------------------------------------------------------
-
-    pub async fn channels(&self, ws: WorkspaceId) -> Result<Vec<Channel>> {
-        self.get(&format!("/workspaces/{ws}/channels")).await
+    pub async fn webhooks(&self, ws: WorkspaceId) -> Result<Vec<Webhook>> {
+        self.get(&format!("/workspaces/{ws}/webhooks")).await
     }
 
-    pub async fn channel(&self, id: ChannelId) -> Result<Channel> {
-        self.get(&format!("/channels/{id}")).await
-    }
-
-    pub async fn create_channel(
+    /// Connect a workspace to a service. The signing secret is in the answer once.
+    pub async fn create_webhook(
         &self,
         ws: WorkspaceId,
-        req: &CreateChannelRequest,
-    ) -> Result<Channel> {
-        self.post(&format!("/workspaces/{ws}/channels"), req).await
+        req: &CreateWebhookRequest,
+    ) -> Result<CreatedWebhook> {
+        self.post(&format!("/workspaces/{ws}/webhooks"), req).await
     }
 
-    pub async fn update_channel(
-        &self,
-        id: ChannelId,
-        req: &UpdateChannelRequest,
-    ) -> Result<Channel> {
-        self.send(
-            Method::PATCH,
-            self.url(&format!("/channels/{id}"))?,
-            Some(req),
-        )
-        .await
+    pub async fn delete_webhook(&self, id: IntegrationId) -> Result<()> {
+        self.delete(&format!("/webhooks/{id}")).await
     }
 
-    pub async fn join_channel(&self, id: ChannelId) -> Result<Channel> {
-        self.post(&format!("/channels/{id}/join"), &()).await
+    // Projects --------------------------------------------------------------------------------
+
+    /// Every project the caller can see, in every workspace.
+    pub async fn all_projects(&self) -> Result<Vec<Project>> {
+        self.get("/projects").await
     }
 
-    pub async fn leave_channel(&self, id: ChannelId) -> Result<()> {
-        self.post(&format!("/channels/{id}/leave"), &()).await
+    pub async fn projects(&self, ws: WorkspaceId) -> Result<Vec<Project>> {
+        self.get(&format!("/workspaces/{ws}/projects")).await
     }
 
-    pub async fn add_channel_member(&self, id: ChannelId, user: UserId) -> Result<Channel> {
+    pub async fn project(&self, id: ProjectId) -> Result<Project> {
+        self.get(&format!("/projects/{id}")).await
+    }
+
+    /// Create a project. Its name is visible to the server; its description is sealed and set
+    /// with [`Client::update_project`] once the project's keys exist.
+    pub async fn create_project(&self, ws: WorkspaceId, name: &str) -> Result<Project> {
         self.post(
-            &format!("/channels/{id}/members"),
-            &AddChannelMemberRequest { user_id: user },
-        )
-        .await
-    }
-
-    pub async fn open_direct(&self, ws: WorkspaceId, user: UserId) -> Result<Channel> {
-        self.post(
-            &format!("/workspaces/{ws}/direct"),
-            &OpenDirectRequest { user_id: user },
-        )
-        .await
-    }
-
-    pub async fn mark_read(&self, id: ChannelId, message: MessageId) -> Result<()> {
-        self.post(
-            &format!("/channels/{id}/read"),
-            &MarkReadRequest {
-                message_id: message,
+            &format!("/workspaces/{ws}/projects"),
+            &CreateProjectRequest {
+                name: name.to_owned(),
             },
         )
         .await
     }
 
-    // Messages --------------------------------------------------------------------------------
-
-    /// History of a channel: the latest page, the page `before` a message, or what came `after`
-    /// one.
-    pub async fn history(
+    pub async fn update_project(
         &self,
-        id: ChannelId,
-        before: Option<MessageId>,
-        after: Option<MessageId>,
+        id: ProjectId,
+        req: &UpdateProjectRequest,
+    ) -> Result<Project> {
+        self.send(
+            Method::PATCH,
+            self.url(&format!("/projects/{id}"))?,
+            Some(req),
+        )
+        .await
+    }
+
+    pub async fn set_guest(&self, id: ProjectId, user: UserId, allowed: bool) -> Result<()> {
+        self.send(
+            Method::PUT,
+            self.url(&format!("/projects/{id}/guests"))?,
+            Some(&SetGuestRequest {
+                user_id: user,
+                allowed,
+            }),
+        )
+        .await
+    }
+
+    /// Newest first; `before` pages back.
+    pub async fn activity(
+        &self,
+        id: ProjectId,
+        before: Option<ActivityId>,
         limit: Option<u32>,
-    ) -> Result<MessagePage> {
-        let mut url = self.url(&format!("/channels/{id}/messages"))?;
+    ) -> Result<Vec<Activity>> {
+        let mut url = self.url(&format!("/projects/{id}/activity"))?;
         {
             let mut q = url.query_pairs_mut();
             if let Some(b) = before {
                 q.append_pair("before", &b.to_string());
-            }
-            if let Some(a) = after {
-                q.append_pair("after", &a.to_string());
             }
             if let Some(l) = limit {
                 q.append_pair("limit", &l.to_string());
@@ -413,31 +387,84 @@ impl Client {
         self.send::<(), _>(Method::GET, url, None).await
     }
 
-    pub async fn post_message(&self, id: ChannelId, req: &PostMessageRequest) -> Result<Message> {
-        self.post(&format!("/channels/{id}/messages"), req).await
+    // Milestones ------------------------------------------------------------------------------
+
+    pub async fn milestones(&self, id: ProjectId) -> Result<Vec<Milestone>> {
+        self.get(&format!("/projects/{id}/milestones")).await
     }
 
-    /// Replace a message's text. Messages are encrypted: [`Secure::edit`] builds the request.
-    pub async fn edit_message(&self, id: MessageId, req: &EditMessageRequest) -> Result<Message> {
+    pub async fn create_milestone(
+        &self,
+        id: ProjectId,
+        req: &CreateMilestoneRequest,
+    ) -> Result<Milestone> {
+        self.post(&format!("/projects/{id}/milestones"), req).await
+    }
+
+    pub async fn update_milestone(
+        &self,
+        id: MilestoneId,
+        req: &UpdateMilestoneRequest,
+    ) -> Result<Milestone> {
         self.send(
             Method::PATCH,
-            self.url(&format!("/messages/{id}"))?,
+            self.url(&format!("/milestones/{id}"))?,
             Some(req),
         )
         .await
     }
 
-    /// Messages by id that the caller may read in a workspace, newest first.
-    pub async fn lookup_messages(
-        &self,
-        ws: WorkspaceId,
-        ids: &[MessageId],
-    ) -> Result<SearchResults> {
+    pub async fn delete_milestone(&self, id: MilestoneId) -> Result<()> {
+        self.delete(&format!("/milestones/{id}")).await
+    }
+
+    // Tasks -----------------------------------------------------------------------------------
+
+    /// Tasks assigned to the caller, across projects.
+    pub async fn my_tasks(&self) -> Result<Vec<TaskRef>> {
+        self.get("/me/tasks").await
+    }
+
+    pub async fn tasks(&self, id: ProjectId) -> Result<Vec<Task>> {
+        self.get(&format!("/projects/{id}/tasks")).await
+    }
+
+    pub async fn task(&self, id: TaskId) -> Result<Task> {
+        self.get(&format!("/tasks/{id}")).await
+    }
+
+    pub async fn create_task(&self, id: ProjectId, req: &CreateTaskRequest) -> Result<Task> {
+        self.post(&format!("/projects/{id}/tasks"), req).await
+    }
+
+    /// Replace a task's fields. Fails with `Conflict` when someone changed it since `revision`.
+    pub async fn update_task(&self, id: TaskId, req: &UpdateTaskRequest) -> Result<Task> {
+        self.send(Method::PUT, self.url(&format!("/tasks/{id}"))?, Some(req))
+            .await
+    }
+
+    pub async fn move_task(&self, id: TaskId, req: &MoveTaskRequest) -> Result<Task> {
+        self.post(&format!("/tasks/{id}/move"), req).await
+    }
+
+    pub async fn delete_task(&self, id: TaskId) -> Result<()> {
+        self.delete(&format!("/tasks/{id}")).await
+    }
+
+    pub async fn comments(&self, id: TaskId) -> Result<Vec<Comment>> {
+        self.get(&format!("/tasks/{id}/comments")).await
+    }
+
+    pub async fn post_comment(&self, id: TaskId, body: Sealed) -> Result<Comment> {
         self.post(
-            &format!("/workspaces/{ws}/messages/lookup"),
-            &LookupMessagesRequest { ids: ids.to_vec() },
+            &format!("/tasks/{id}/comments"),
+            &PostCommentRequest { body },
         )
         .await
+    }
+
+    pub async fn delete_comment(&self, id: CommentId) -> Result<()> {
+        self.delete(&format!("/comments/{id}")).await
     }
 
     // End-to-end encryption -------------------------------------------------------------------
@@ -463,23 +490,23 @@ impl Client {
         .await
     }
 
-    /// Take a key package for each listed device (base64 signing keys) to add it to a
-    /// conversation. Devices without one left are missing from the answer.
+    /// Take a key package for each listed device (base64 signing keys) to add it to a project.
+    /// Devices without one left are missing from the answer.
     pub async fn claim_key_packages(
         &self,
-        id: ChannelId,
+        id: ProjectId,
         devices: Vec<String>,
     ) -> Result<Vec<ClaimedKeyPackage>> {
         self.post(
-            &format!("/channels/{id}/mls/key_packages"),
+            &format!("/projects/{id}/mls/key_packages"),
             &ClaimKeyPackagesRequest { devices },
         )
         .await
     }
 
-    /// A conversation's encryption state, with the log entries after `after` when it is set.
-    pub async fn mls_state(&self, id: ChannelId, after: Option<i64>) -> Result<MlsState> {
-        let mut url = self.url(&format!("/channels/{id}/mls"))?;
+    /// A project's encryption state, with the log entries after `after` when it is set.
+    pub async fn mls_state(&self, id: ProjectId, after: Option<i64>) -> Result<MlsState> {
+        let mut url = self.url(&format!("/projects/{id}/mls"))?;
         if let Some(after) = after {
             url.query_pairs_mut()
                 .append_pair("after", &after.to_string());
@@ -489,11 +516,11 @@ impl Client {
 
     pub async fn mls_create_group(
         &self,
-        id: ChannelId,
+        id: ProjectId,
         group_info: &str,
     ) -> Result<CommitResponse> {
         self.post(
-            &format!("/channels/{id}/mls/group"),
+            &format!("/projects/{id}/mls/group"),
             &CreateGroupRequest {
                 group_info: group_info.to_owned(),
             },
@@ -501,37 +528,27 @@ impl Client {
         .await
     }
 
-    pub async fn mls_commit(&self, id: ChannelId, req: &CommitRequest) -> Result<CommitResponse> {
-        self.post(&format!("/channels/{id}/mls/commit"), req).await
+    pub async fn mls_commit(&self, id: ProjectId, req: &CommitRequest) -> Result<CommitResponse> {
+        self.post(&format!("/projects/{id}/mls/commit"), req).await
     }
 
-    pub async fn delete_message(&self, id: MessageId) -> Result<()> {
-        self.send::<(), _>(Method::DELETE, self.url(&format!("/messages/{id}"))?, None)
-            .await
-    }
-
-    pub async fn thread(&self, id: MessageId) -> Result<Thread> {
-        self.get(&format!("/messages/{id}/thread")).await
-    }
-
-    pub async fn react(&self, id: MessageId, emoji: &str) -> Result<Vec<Reaction>> {
+    pub async fn mls_share_keys(&self, id: ProjectId, data: &str) -> Result<CommitResponse> {
         self.post(
-            &format!("/messages/{id}/reactions"),
-            &ReactRequest {
-                emoji: emoji.to_owned(),
+            &format!("/projects/{id}/mls/keys"),
+            &ShareKeysRequest {
+                data: data.to_owned(),
             },
         )
         .await
     }
 
-    pub async fn search(&self, ws: WorkspaceId, query: &str) -> Result<SearchResults> {
-        let mut url = self.url(&format!("/workspaces/{ws}/search"))?;
-        url.query_pairs_mut().append_pair("q", query);
-        self.send::<(), _>(Method::GET, url, None).await
+    async fn delete(&self, path: &str) -> Result<()> {
+        self.send::<(), _>(Method::DELETE, self.url(path)?, None)
+            .await
     }
 }
 
-/// A fresh idempotency key for a message.
+/// A fresh random hex string (32 characters), for ids that must not repeat.
 pub fn new_nonce() -> String {
     use rand::Rng;
     let mut rng = rand::thread_rng();
@@ -545,16 +562,16 @@ mod tests {
     #[test]
     fn server_addresses() {
         assert_eq!(
-            parse_server_url("localhost:7878").unwrap().as_str(),
-            "http://localhost:7878/"
+            parse_server_url("localhost:7879").unwrap().as_str(),
+            "http://localhost:7879/"
         );
         assert_eq!(
             parse_server_url("chat.example.com").unwrap().as_str(),
             "https://chat.example.com/"
         );
         assert_eq!(
-            parse_server_url("http://10.0.0.2:7878/").unwrap().port(),
-            Some(7878)
+            parse_server_url("http://10.0.0.2:7879/").unwrap().port(),
+            Some(7879)
         );
         assert!(parse_server_url("ftp://x").is_err());
         assert!(parse_server_url("").is_err());
@@ -562,9 +579,9 @@ mod tests {
 
     #[test]
     fn plain_http_is_only_fine_on_this_machine() {
-        assert!(!is_insecure(&parse_server_url("localhost:7878").unwrap()));
+        assert!(!is_insecure(&parse_server_url("localhost:7879").unwrap()));
         assert!(is_insecure(
-            &parse_server_url("http://10.0.0.2:7878").unwrap()
+            &parse_server_url("http://10.0.0.2:7879").unwrap()
         ));
         assert!(!is_insecure(&parse_server_url("chat.example.com").unwrap()));
     }
@@ -581,7 +598,8 @@ mod tests {
     #[test]
     fn nonces_are_valid() {
         let n = new_nonce();
-        assert!(hito_core::validate::nonce(&n).is_ok());
+        assert_eq!(n.len(), 32);
+        assert!(n.bytes().all(|b| b.is_ascii_hexdigit()));
         assert_ne!(n, new_nonce());
     }
 }

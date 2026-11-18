@@ -105,6 +105,9 @@ pub fn password(value: &str) -> Result<(), ValidationError> {
     Ok(())
 }
 
+pub fn workspace_name(value: &str) -> Result<String, ValidationError> {
+    line("workspace_name", value, WORKSPACE_NAME_MAX)
+}
 
 pub fn project_name(value: &str) -> Result<String, ValidationError> {
     line("project_name", value, PROJECT_NAME_MAX)
@@ -199,7 +202,9 @@ pub fn server_url(value: &str) -> Result<String, ValidationError> {
         .strip_prefix("https://")
         .or_else(|| v.strip_prefix("http://"));
     match rest {
-        Some(host) if !host.is_empty() && !host.chars().any(|c| c.is_whitespace() || c.is_control()) => {
+        Some(host)
+            if !host.is_empty() && !host.chars().any(|c| c.is_whitespace() || c.is_control()) =>
+        {
             Ok(v.to_owned())
         }
         _ => Err(ValidationError::BadCharacters { field }),

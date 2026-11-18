@@ -1,12 +1,12 @@
+use axum::extract::{Path, State};
+use axum::http::StatusCode;
+use axum::Json;
 use hito_core::{limits, validate, InviteId, Role, WorkspaceId};
 use hito_protocol::{
     CreateInviteRequest, CreateWorkspaceRequest, Invite, JoinWorkspaceRequest, Member, ServerEvent,
     User, Workspace,
 };
 use hito_storage::workspaces::NewInvite;
-use axum::extract::{Path, State};
-use axum::http::StatusCode;
-use axum::Json;
 
 use super::workspace_role;
 use crate::auth::{self, now_ms, Auth};
@@ -89,13 +89,6 @@ pub async fn create_invite(
         return Err(AppError::forbidden(
             "only owners and admins can invite people",
         ));
-    }
-    if let Some(owner) = state.store.workspace_organization_owner(ws).await? {
-        if owner != auth.user.id {
-            return Err(AppError::forbidden(
-                "only the organization owner can invite people to its workspaces",
-            ));
-        }
     }
     super::check_write(&state, auth.user.id)?;
     let max_uses = req.max_uses.unwrap_or(1);

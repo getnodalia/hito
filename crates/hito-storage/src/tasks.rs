@@ -94,10 +94,11 @@ async fn check_milestone(
     milestone: Option<MilestoneId>,
 ) -> Result<()> {
     if let Some(m) = milestone {
-        let owner: Option<i64> = sqlx::query_scalar("SELECT project_id FROM milestones WHERE id = ?")
-            .bind(m.0)
-            .fetch_optional(&mut **tx)
-            .await?;
+        let owner: Option<i64> =
+            sqlx::query_scalar("SELECT project_id FROM milestones WHERE id = ?")
+                .bind(m.0)
+                .fetch_optional(&mut **tx)
+                .await?;
         if owner != Some(project.0) {
             return Err(StoreError::NotFound);
         }
@@ -436,14 +437,14 @@ async fn neighbour_rank(
     let Some(other) = other.filter(|o| *o != me) else {
         return Ok(None);
     };
-    Ok(sqlx::query_scalar(
-        "SELECT rank FROM tasks WHERE id = ? AND project_id = ? AND status = ?",
+    Ok(
+        sqlx::query_scalar("SELECT rank FROM tasks WHERE id = ? AND project_id = ? AND status = ?")
+            .bind(other.0)
+            .bind(project.0)
+            .bind(status.as_str())
+            .fetch_optional(&mut **tx)
+            .await?,
     )
-    .bind(other.0)
-    .bind(project.0)
-    .bind(status.as_str())
-    .fetch_optional(&mut **tx)
-    .await?)
 }
 
 async fn rank_between(

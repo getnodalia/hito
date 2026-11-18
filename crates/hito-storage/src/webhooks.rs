@@ -32,7 +32,10 @@ fn webhook(row: &SqliteRow) -> Result<WebhookRow> {
             name: row.try_get("name")?,
             url: row.try_get("url")?,
             // An unknown kind (from a newer version) is dropped rather than failing the list.
-            events: events.split_whitespace().filter_map(ActivityKind::parse).collect(),
+            events: events
+                .split_whitespace()
+                .filter_map(ActivityKind::parse)
+                .collect(),
             created_at: row.try_get("created_at")?,
             last_delivery_at: row.try_get("last_delivery_at")?,
             last_delivery_ok: ok.map(|v| v != 0),

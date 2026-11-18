@@ -76,12 +76,16 @@ fn a_late_member_gets_every_key_and_reads_what_came_before() {
     let mut server = Server::default();
     let (mut ana, mut ben) = (device(1), device(2));
     server.enter(&mut ana);
-    let early = ana.seal(P, Field::Task, "Revisar el presupuesto 🙂").unwrap();
+    let early = ana
+        .seal(P, Field::Task, "Revisar el presupuesto 🙂")
+        .unwrap();
 
     server.enter(&mut ben);
     assert!(!ben.has_keys(P));
     let out = server.sync(&mut ana);
-    assert!(matches!(out.as_slice(), [Outcome::Changed { joined, .. }] if joined[0].user == UserId(2)));
+    assert!(
+        matches!(out.as_slice(), [Outcome::Changed { joined, .. }] if joined[0].user == UserId(2))
+    );
     let share = ana.share_keys(P).unwrap();
     server.post(&mut ana, share);
     assert_eq!(server.sync(&mut ben), vec![Outcome::Keys { new: 1 }]);
@@ -102,7 +106,10 @@ fn sealed_text_is_bound_to_its_project_and_field() {
     let mut ana = device(1);
     server.enter(&mut ana);
     let sealed = ana.seal(P, Field::Comment, "secreto").unwrap();
-    assert!(matches!(ana.open(P, Field::Task, &sealed), Err(Error::Tampered)));
+    assert!(matches!(
+        ana.open(P, Field::Task, &sealed),
+        Err(Error::Tampered)
+    ));
     assert!(matches!(
         ana.open(ProjectId(8), Field::Comment, &sealed),
         Err(Error::NoKey)
@@ -111,12 +118,18 @@ fn sealed_text_is_bound_to_its_project_and_field() {
     if let Some(b) = flipped.data.last_mut() {
         *b ^= 1;
     }
-    assert!(matches!(ana.open(P, Field::Comment, &flipped), Err(Error::Tampered)));
+    assert!(matches!(
+        ana.open(P, Field::Comment, &flipped),
+        Err(Error::Tampered)
+    ));
     let short = Sealed {
         key_id: sealed.key_id,
         data: vec![0; 5],
     };
-    assert!(matches!(ana.open(P, Field::Comment, &short), Err(Error::Tampered)));
+    assert!(matches!(
+        ana.open(P, Field::Comment, &short),
+        Err(Error::Tampered)
+    ));
     // Two seals of one text differ: every one has its own nonce.
     assert_ne!(ana.seal(P, Field::Comment, "secreto").unwrap(), sealed);
 }
@@ -146,7 +159,10 @@ fn removal_rotates_the_key_and_the_removed_device_gets_no_new_one() {
 
     assert!(server.sync(&mut ben).contains(&Outcome::Removed));
     assert!(!ben.is_member(P));
-    assert!(matches!(ben.open(P, Field::Task, &secret), Err(Error::NoKey)));
+    assert!(matches!(
+        ben.open(P, Field::Task, &secret),
+        Err(Error::NoKey)
+    ));
 }
 
 #[test]
@@ -156,7 +172,10 @@ fn a_saved_device_keeps_its_keys() {
     server.enter(&mut ana);
     let sealed = ana.seal(P, Field::Milestone, "Lanzamiento").unwrap();
     let ana = Device::from_bytes(&ana.to_bytes().unwrap()).unwrap();
-    assert_eq!(ana.open(P, Field::Milestone, &sealed).unwrap(), "Lanzamiento");
+    assert_eq!(
+        ana.open(P, Field::Milestone, &sealed).unwrap(),
+        "Lanzamiento"
+    );
     assert!(ana.is_member(P));
 }
 

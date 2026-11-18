@@ -5,13 +5,13 @@
 //! operating system; the database keeps only their SHA-256, so a leaked database cannot be used
 //! to log in. Nothing here is a home-made algorithm.
 
-use hito_protocol::{Timestamp, User};
 use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use argon2::Argon2;
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
+use hito_protocol::{Timestamp, User};
 use rand::rngs::OsRng;
 use rand::RngCore;
 use sha2::{Digest, Sha256};
@@ -72,26 +72,60 @@ pub fn now_ms() -> Timestamp {
 #[derive(Clone, Debug)]
 pub struct Auth {
     pub user: User,
-    pub session_id: i64,
+    /// The session, for an app; `None` for an API token (scripts, integrations), which has no
+    /// device and so can never open sealed text.
+    pub session_id: Option<i64>,
     pub token_hash: Vec<u8>,
 }
 
-/// Look a bearer token up. `None` for unknown or expired sessions.
+impl Auth {
+    /// The session, for endpoints that only an app's session may call (devices, encryption,
+    /// session management).
+    pub fn session(&self) -> Result<i64, AppError> {
+        self.session_id
+            .ok_or_else(|| AppError::forbidden("an API token cannot do this; sign in with the app"))
+    }
+}
+
+/// Look a bearer token (a session's, or an API token) up. `None` when it is unknown or expired.
 pub async fn session_for_token(state: &AppState, token: &str) -> Result<Option<Auth>, AppError> {
     if token.is_empty() || token.len() > 128 {
         return Ok(None);
     }
     let hash = token_hash(token);
     let now = now_ms();
+    if token.starts_with(hito_protocol::API_TOKEN_PREFIX) {
+        let Some(user) = state.store.token_user(&hash, now).await? else {
+            return Ok(None);
+        };
+        return Ok(Some(Auth {
+            user,
+            session_id: None,
+            token_hash: hash,
+        }));
+    }
     let Some(session) = state.store.session(&hash, now).await? else {
         return Ok(None);
     };
     state.store.touch_session(session.id, now).await?;
     Ok(Some(Auth {
         user: session.user,
-        session_id: session.id,
+        session_id: Some(session.id),
         token_hash: hash,
     }))
+}
+
+/// Whether the credential behind `auth` still works.
+pub async fn still_valid(state: &AppState, auth: &Auth) -> Result<bool, AppError> {
+    let now = now_ms();
+    Ok(match auth.session_id {
+        Some(_) => state.store.session(&auth.token_hash, now).await?.is_some(),
+        None => state
+            .store
+            .token_user(&auth.token_hash, now)
+            .await?
+            .is_some(),
+    })
 }
 
 impl FromRequestParts<AppState> for Auth {

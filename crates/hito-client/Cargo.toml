@@ -10,6 +10,7 @@ publish = false
 
 [dependencies]
 hito-core.workspace = true
+hito-e2e.workspace = true
 base64.workspace = true
 hito-protocol.workspace = true
 futures-util.workspace = true

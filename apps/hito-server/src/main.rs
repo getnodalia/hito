@@ -23,7 +23,7 @@ OPTIONS:
 
 ENVIRONMENT:
     HITO_CONFIG        Configuration file, when --config is not given
-    HITO_BIND          Address to listen on (default 127.0.0.1:7878)
+    HITO_BIND          Address to listen on (default 127.0.0.1:7879)
     HITO_DATABASE      SQLite URL (default sqlite://hito.db)
     HITO_REGISTRATION  open, invite_only or closed
     HITO_TRUST_PROXY   true behind a TLS reverse proxy

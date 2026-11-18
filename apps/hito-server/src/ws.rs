@@ -3,20 +3,19 @@
 //! The client authenticates with its first frame (browsers cannot set headers on a WebSocket,
 //! so a header would not work for the future web client). Until then nothing is sent to it; a
 //! wrong token gets one `error` event and the socket closes. After that the server pushes
-//! [`ServerEvent`]s and accepts typing notices and pings. The session is checked again every
+//! [`ServerEvent`]s and accepts pings. The session is checked again every
 //! minute, and a logout closes its sockets at once.
 
 use std::time::Duration;
 
-use hito_core::roles;
-use hito_protocol::{ClientFrame, ErrorCode, ServerEvent, WS_AUTH_TIMEOUT_SECS};
 use axum::extract::ws::{CloseFrame, Message as WsMessage, Utf8Bytes, WebSocket, WebSocketUpgrade};
 use axum::extract::State;
 use axum::response::Response;
 use futures_util::{SinkExt, StreamExt};
+use hito_protocol::{ClientFrame, ErrorCode, ServerEvent, WS_AUTH_TIMEOUT_SECS};
 use tokio::time::{interval, timeout, Instant};
 
-use crate::auth::{now_ms, session_for_token, Auth};
+use crate::auth::{session_for_token, Auth};
 use crate::hub::Outgoing;
 use crate::state::AppState;
 
@@ -24,8 +23,6 @@ use crate::state::AppState;
 const MAX_FRAME: usize = 16 * 1024;
 const PING_EVERY: Duration = Duration::from_secs(30);
 const RECHECK_SESSION_EVERY: Duration = Duration::from_secs(60);
-/// Typing notices relayed per user per minute.
-const TYPING_PER_MINUTE: u32 = 30;
 
 pub async fn upgrade(State(state): State<AppState>, ws: WebSocketUpgrade) -> Response {
     ws.max_message_size(MAX_FRAME)
@@ -101,7 +98,8 @@ async fn handle(state: AppState, mut socket: WebSocket) {
     let user = auth.user.clone();
     let Some(registered) = state.hub.register(
         user.id,
-        auth.session_id,
+        // API tokens have no session; 0 is never a session id.
+        auth.session_id.unwrap_or(0),
         state.config.limits.connections_per_user,
     ) else {
         reject(
@@ -154,9 +152,6 @@ async fn handle(state: AppState, mut socket: WebSocket) {
                         Ok(ClientFrame::Ping) => {
                             if sink.send(json(&ServerEvent::Pong)).await.is_err() { break; }
                         }
-                        Ok(ClientFrame::Typing { channel_id, thread_root_id }) => {
-                            relay_typing(&state, &auth, channel_id, thread_root_id).await;
-                        }
                         // Auth again or unknown frames are ignored, never fatal.
                         Ok(ClientFrame::Auth { .. }) | Err(_) => {}
                     }
@@ -169,9 +164,9 @@ async fn handle(state: AppState, mut socket: WebSocket) {
                 if sink.send(WsMessage::Ping(Default::default())).await.is_err() { break; }
             }
             _ = recheck.tick() => {
-                match state.store.session(&auth.token_hash, now_ms()).await {
-                    Ok(Some(_)) => {}
-                    Ok(None) => {
+                match crate::auth::still_valid(&state, &auth).await {
+                    Ok(true) => {}
+                    Ok(false) => {
                         let _ = sink.send(json(&ServerEvent::Error { code: ErrorCode::Unauthenticated, message: "session ended".into() })).await;
                         break;
                     }
@@ -201,41 +196,4 @@ async fn announce_presence(state: &AppState, auth: &Auth, online: bool) {
             },
         );
     }
-}
-
-async fn relay_typing(
-    state: &AppState,
-    auth: &Auth,
-    channel: hito_core::ChannelId,
-    thread_root_id: Option<hito_core::MessageId>,
-) {
-    if !state
-        .limiter
-        .allow(&format!("typing:{}", auth.user.id), TYPING_PER_MINUTE)
-    {
-        return;
-    }
-    let Ok(access) = crate::routes::channel_access(state, channel, auth.user.id).await else {
-        return;
-    };
-    if !roles::can_post(
-        access.role,
-        access.channel.kind,
-        access.member,
-        access.channel.archived,
-    ) {
-        return;
-    }
-    let Ok(mut audience) = state.store.channel_audience(&access.channel).await else {
-        return;
-    };
-    audience.retain(|u| *u != auth.user.id);
-    state.hub.send(
-        &audience,
-        &ServerEvent::Typing {
-            channel_id: channel,
-            thread_root_id,
-            user: auth.user.clone(),
-        },
-    );
 }

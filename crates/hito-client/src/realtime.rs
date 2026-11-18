@@ -9,8 +9,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use hito_protocol::{ClientFrame, ErrorCode, ServerEvent, User};
 use futures_util::{SinkExt, StreamExt};
+use hito_protocol::{ClientFrame, ErrorCode, ServerEvent, User};
 use rand::Rng;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -25,7 +25,7 @@ const BACKOFF_MIN: Duration = Duration::from_millis(500);
 const BACKOFF_MAX: Duration = Duration::from_secs(30);
 
 /// What happened to the connection.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum RealtimeEvent {
     /// Trying to connect (attempt 1 is the first).
     Connecting {

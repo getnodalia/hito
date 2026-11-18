@@ -78,17 +78,15 @@ async fn progress_and_overdue_follow_the_tasks() {
 #[tokio::test]
 async fn a_stale_revision_is_refused() {
     let w = world().await;
-    let t = w
-        .s
-        .create_task(w.p, fields("a", Status::Todo), w.ana, 3)
-        .await
-        .unwrap()
-        .task;
-    let first = w
-        .s
-        .update_task(t.id, fields("b", Status::InProgress), t.revision, w.ana, 4)
-        .await
-        .unwrap();
+    let t =
+        w.s.create_task(w.p, fields("a", Status::Todo), w.ana, 3)
+            .await
+            .unwrap()
+            .task;
+    let first =
+        w.s.update_task(t.id, fields("b", Status::InProgress), t.revision, w.ana, 4)
+            .await
+            .unwrap();
     assert_eq!(first.task.revision, t.revision + 1);
     assert!(matches!(
         w.s.update_task(t.id, fields("c", Status::Todo), t.revision, w.ana, 5)
@@ -131,11 +129,10 @@ async fn moving_puts_a_task_between_its_neighbours() {
     }
     let order: Vec<TaskId> = w.s.tasks(w.p).await.unwrap().iter().map(|t| t.id).collect();
     assert_eq!(order, vec![ids[0], ids[2], ids[1]]);
-    let done = w
-        .s
-        .move_task(ids[0], Status::Done, None, None, w.ana, 6)
-        .await
-        .unwrap();
+    let done =
+        w.s.move_task(ids[0], Status::Done, None, None, w.ana, 6)
+            .await
+            .unwrap();
     assert_eq!(done.activity[0].kind, ActivityKind::TaskCompleted);
     assert_eq!(done.task.completed_at, Some(6));
 }
@@ -143,33 +140,33 @@ async fn moving_puts_a_task_between_its_neighbours() {
 #[tokio::test]
 async fn a_milestone_is_reached_when_its_last_task_is_done_and_unreached_when_reopened() {
     let w = world().await;
-    let (m, _) = w
-        .s
-        .create_milestone(w.p, &sealed("m"), Some(50), w.ana, 3)
-        .await
-        .unwrap();
+    let (m, _) =
+        w.s.create_milestone(w.p, &sealed("m"), Some(50), w.ana, 3)
+            .await
+            .unwrap();
     let mut f = fields("a", Status::Todo);
     f.milestone = Some(m.id);
     let t = w.s.create_task(w.p, f, w.ana, 3).await.unwrap().task;
     assert_eq!(w.s.milestone(m.id).await.unwrap().unwrap().reached_at, None);
-    let done = w
-        .s
-        .move_task(t.id, Status::Done, None, None, w.ana, 9)
-        .await
-        .unwrap();
+    let done =
+        w.s.move_task(t.id, Status::Done, None, None, w.ana, 9)
+            .await
+            .unwrap();
     assert!(done
         .activity
         .iter()
         .any(|a| a.kind == ActivityKind::MilestoneReached));
-    assert_eq!(w.s.milestone(m.id).await.unwrap().unwrap().reached_at, Some(9));
+    assert_eq!(
+        w.s.milestone(m.id).await.unwrap().unwrap().reached_at,
+        Some(9)
+    );
     w.s.move_task(t.id, Status::Todo, None, None, w.ana, 10)
         .await
         .unwrap();
     assert_eq!(w.s.milestone(m.id).await.unwrap().unwrap().reached_at, None);
 
-    let (m2, _) = w
-        .s
-        .update_milestone(
+    let (m2, _) =
+        w.s.update_milestone(
             m.id,
             MilestoneChange {
                 content: Some(&sealed("n")),
@@ -190,11 +187,10 @@ async fn a_milestone_is_reached_when_its_last_task_is_done_and_unreached_when_re
 async fn a_milestone_from_another_project_is_refused() {
     let w = world().await;
     let (other, _) = w.s.create_project(w.ws, "Other", w.ana, 2).await.unwrap();
-    let (m, _) = w
-        .s
-        .create_milestone(other.id, &sealed("m"), None, w.ana, 3)
-        .await
-        .unwrap();
+    let (m, _) =
+        w.s.create_milestone(other.id, &sealed("m"), None, w.ana, 3)
+            .await
+            .unwrap();
     let mut f = fields("a", Status::Todo);
     f.milestone = Some(m.id);
     assert!(matches!(
@@ -209,7 +205,12 @@ async fn guests_see_only_the_projects_they_were_added_to() {
     let (other, _) = w.s.create_project(w.ws, "Secret", w.ana, 2).await.unwrap();
     let gus = w.s.create_user("gus", "Gus", "h", 1).await.unwrap().id;
     w.s.add_member(w.ws, gus, Role::Guest, 2).await.unwrap();
-    assert!(w.s.projects_in(w.ws, gus, Role::Guest, 5).await.unwrap().is_empty());
+    assert!(w
+        .s
+        .projects_in(w.ws, gus, Role::Guest, 5)
+        .await
+        .unwrap()
+        .is_empty());
     w.s.set_project_guest(w.p, gus, true).await.unwrap();
     let seen = w.s.projects_in(w.ws, gus, Role::Guest, 5).await.unwrap();
     assert_eq!(seen.iter().map(|p| p.id).collect::<Vec<_>>(), vec![w.p]);
@@ -241,12 +242,11 @@ async fn my_tasks_cross_projects() {
 #[tokio::test]
 async fn comments_count_and_log() {
     let w = world().await;
-    let t = w
-        .s
-        .create_task(w.p, fields("a", Status::Todo), w.ana, 3)
-        .await
-        .unwrap()
-        .task;
+    let t =
+        w.s.create_task(w.p, fields("a", Status::Todo), w.ana, 3)
+            .await
+            .unwrap()
+            .task;
     let (project, c, activity) = w.s.add_comment(t.id, &sealed("x"), w.ana, 4).await.unwrap();
     assert_eq!((project, c.body.clone()), (w.p, sealed("x")));
     assert_eq!(activity.subject, Some(sealed("a")));
@@ -261,12 +261,11 @@ async fn comments_count_and_log() {
 #[tokio::test]
 async fn deleting_a_task_logs_its_last_content() {
     let w = world().await;
-    let t = w
-        .s
-        .create_task(w.p, fields("a", Status::Todo), w.ana, 3)
-        .await
-        .unwrap()
-        .task;
+    let t =
+        w.s.create_task(w.p, fields("a", Status::Todo), w.ana, 3)
+            .await
+            .unwrap()
+            .task;
     let gone = w.s.delete_task(t.id, w.ana, 4).await.unwrap();
     assert_eq!(gone.activity[0].subject, Some(sealed("a")));
     assert!(w.s.task(t.id).await.unwrap().is_none());
@@ -279,10 +278,7 @@ async fn tokens_are_found_by_hash_and_revoked_only_by_their_owner() {
     let t = w.s.create_token(w.ana, "Ágora", b"hash", 5).await.unwrap();
     assert_eq!(w.s.token_user(b"hash", 6).await.unwrap().unwrap().id, w.ana);
     assert!(w.s.token_user(b"nope", 6).await.unwrap().is_none());
-    assert_eq!(
-        w.s.tokens(w.ana).await.unwrap()[0].last_used_at,
-        Some(6)
-    );
+    assert_eq!(w.s.tokens(w.ana).await.unwrap()[0].last_used_at, Some(6));
     assert!(matches!(
         w.s.delete_token(ben, t.id).await,
         Err(StoreError::NotFound)
@@ -309,9 +305,8 @@ async fn webhooks_filter_by_project_and_event() {
     )
     .await
     .unwrap();
-    let all = w
-        .s
-        .create_webhook(
+    let all =
+        w.s.create_webhook(
             NewWebhook {
                 workspace: w.ws,
                 project: None,
@@ -326,10 +321,21 @@ async fn webhooks_filter_by_project_and_event() {
         .await
         .unwrap();
     let hit = |p, k| w.s.webhooks_for(w.ws, p, k);
-    assert_eq!(hit(w.p, ActivityKind::TaskCompleted).await.unwrap().len(), 2);
+    assert_eq!(
+        hit(w.p, ActivityKind::TaskCompleted).await.unwrap().len(),
+        2
+    );
     assert_eq!(hit(w.p, ActivityKind::TaskCreated).await.unwrap().len(), 1);
-    assert_eq!(hit(other.id, ActivityKind::TaskCompleted).await.unwrap().len(), 1);
-    w.s.webhook_delivered(all.webhook.id, true, 9).await.unwrap();
+    assert_eq!(
+        hit(other.id, ActivityKind::TaskCompleted)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    w.s.webhook_delivered(all.webhook.id, true, 9)
+        .await
+        .unwrap();
     let again = w.s.webhook(all.webhook.id).await.unwrap().unwrap();
     assert_eq!(again.webhook.last_delivery_ok, Some(true));
     assert_eq!(again.secret, "t");
@@ -344,13 +350,13 @@ async fn the_mls_log_moves_one_epoch_at_a_time() {
         Err(StoreError::Conflict)
     ));
     let k = w.s.mls_share_keys(w.p, 0, b"keys", w.ana, 4).await.unwrap();
-    let c = w
-        .s
-        .mls_commit(w.p, 0, b"commit", b"info1", None, w.ana, 5)
-        .await
-        .unwrap();
+    let c =
+        w.s.mls_commit(w.p, 0, b"commit", b"info1", None, w.ana, 5)
+            .await
+            .unwrap();
     assert!(matches!(
-        w.s.mls_commit(w.p, 0, b"late", b"info1", None, w.ana, 5).await,
+        w.s.mls_commit(w.p, 0, b"late", b"info1", None, w.ana, 5)
+            .await,
         Err(StoreError::StaleEpoch)
     ));
     assert!(matches!(

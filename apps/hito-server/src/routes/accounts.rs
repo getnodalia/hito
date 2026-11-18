@@ -1,14 +1,14 @@
 use std::net::SocketAddr;
 
+use axum::extract::{ConnectInfo, State};
+use axum::http::{HeaderMap, StatusCode};
+use axum::Json;
 use hito_core::validate;
 use hito_protocol::{
     ErrorCode, LoginRequest, RegisterRequest, RevokeOtherSessionsRequest, ServerInfo,
     SessionResponse, UpdateProfileRequest, User,
 };
 use hito_storage::StoreError;
-use axum::extract::{ConnectInfo, State};
-use axum::http::{HeaderMap, StatusCode};
-use axum::Json;
 
 use super::client_ip;
 use crate::auth::{self, now_ms, Auth};
@@ -201,7 +201,7 @@ pub async fn revoke_other_sessions(
     }
     let ids = state
         .store
-        .delete_other_sessions(auth.user.id, auth.session_id)
+        .delete_other_sessions(auth.user.id, auth.session()?)
         .await?;
     for id in &ids {
         state.hub.close_session(*id);

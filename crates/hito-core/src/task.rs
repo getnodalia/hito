@@ -3,9 +3,12 @@
 use serde::{Deserialize, Serialize};
 
 /// Where a task is in its life. The board shows one column per state, in this order.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum Status {
+    #[default]
     Todo,
     InProgress,
     InReview,

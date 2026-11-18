@@ -131,8 +131,12 @@ impl Store {
             .bind(id.0)
             .fetch_optional(&self.pool)
             .await?;
-        row.map(|r| Ok(ProjectRow { project: project(&r)? }))
-            .transpose()
+        row.map(|r| {
+            Ok(ProjectRow {
+                project: project(&r)?,
+            })
+        })
+        .transpose()
     }
 
     /// The projects of a workspace that a member with `role` can see, newest activity first.

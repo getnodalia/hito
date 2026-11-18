@@ -27,6 +27,9 @@ pub struct Config {
     /// Allow listening on a non-loopback address without a TLS proxy in front. Passwords and
     /// tokens would cross the network in clear text: only for an isolated lab network.
     pub allow_insecure_public_bind: bool,
+    /// The address people reach this server at (`https://hito.example.com`), for links in
+    /// webhook deliveries. Optional.
+    pub public_url: Option<String>,
     pub limits: Limits,
 }
 
@@ -80,12 +83,13 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             name: "Hito".into(),
-            bind: SocketAddr::from(([127, 0, 0, 1], 7878)),
+            bind: SocketAddr::from(([127, 0, 0, 1], 7879)),
             database: "sqlite://hito.db".into(),
             registration: RegistrationPolicy::Open,
             session_days: 30,
             trust_proxy: false,
             allow_insecure_public_bind: false,
+            public_url: None,
             limits: Limits::default(),
         }
     }
@@ -206,7 +210,7 @@ mod tests {
     #[test]
     fn public_bind_needs_a_tls_proxy_or_an_explicit_opt_out() {
         let mut c = Config {
-            bind: "0.0.0.0:7878".parse().unwrap(),
+            bind: "0.0.0.0:7879".parse().unwrap(),
             ..Config::default()
         };
         assert!(matches!(c.check(), Err(ConfigError::InsecureBind(_))));

@@ -25,8 +25,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use chacha20poly1305::aead::{Aead, KeyInit, Payload as AeadPayload};
 use chacha20poly1305::{XChaCha20Poly1305, XNonce};
 
-use hito_core::{ProjectId, UserId};
 use base64::Engine as _;
+use hito_core::{ProjectId, UserId};
 use openmls::messages::group_info::VerifiableGroupInfo;
 use openmls::prelude::tls_codec::{Deserialize as _, Serialize as _};
 use openmls::prelude::*;
@@ -796,11 +796,7 @@ impl Device {
         let key_id = self.current_key(project).ok_or(Error::NoKey)?;
         let key = self.key(project, key_id).ok_or(Error::NoKey)?;
         let cipher = XChaCha20Poly1305::new(&key.into());
-        let nonce_bytes = self
-            .provider
-            .rand()
-            .random_array::<24>()
-            .map_err(mls)?;
+        let nonce_bytes = self.provider.rand().random_array::<24>().map_err(mls)?;
         let nonce = XNonce::from(nonce_bytes);
         let aad = aad(project, field, key_id);
         let ciphertext = cipher
@@ -820,10 +816,7 @@ impl Device {
     /// Decrypt text sealed in `project` for `field`.
     pub fn open(&self, project: ProjectId, field: Field, sealed: &Sealed) -> Result<String> {
         let key = self.key(project, sealed.key_id).ok_or(Error::NoKey)?;
-        let (nonce, ciphertext) = sealed
-            .data
-            .split_at_checked(24)
-            .ok_or(Error::Tampered)?;
+        let (nonce, ciphertext) = sealed.data.split_at_checked(24).ok_or(Error::Tampered)?;
         let nonce = XNonce::from_slice(nonce);
         let cipher = XChaCha20Poly1305::new(&key.into());
         let aad = aad(project, field, sealed.key_id);
