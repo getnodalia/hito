@@ -1,0 +1,37 @@
+[package]
+name = "hito-desktop"
+description = "Hito's native desktop client, drawn in the Nodalia Design Language."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[[bin]]
+name = "hito"
+path = "src/main.rs"
+
+[dependencies]
+hito-core.workspace = true
+hito-protocol.workspace = true
+hito-client.workspace = true
+eframe.workspace = true
+egui.workspace = true
+nodalia-theme.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+directories.workspace = true
+chrono.workspace = true
+png.workspace = true
+sys-locale = "0.3"
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+notify-rust = "4.19"
+
+[lints]
+workspace = true

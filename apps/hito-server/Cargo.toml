@@ -1,0 +1,48 @@
+[package]
+name = "hito-server"
+description = "Hito's self-hostable server: HTTP API, WebSockets and SQLite storage in one small binary."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "hito-server"
+path = "src/main.rs"
+
+[dependencies]
+hito-core.workspace = true
+hito-protocol.workspace = true
+hito-storage.workspace = true
+argon2.workspace = true
+aes = { version = "0.8", features = ["zeroize"] }
+aes-gcm = { version = "0.10", features = ["zeroize"] }
+totp-rs = { version = "6", default-features = false, features = ["std", "zeroize"] }
+zeroize = "1"
+axum.workspace = true
+base64.workspace = true
+futures-util.workspace = true
+rand.workspace = true
+reqwest.workspace = true
+semver.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+toml.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+hito-client.workspace = true
+tower.workspace = true
+
+[lints]
+workspace = true

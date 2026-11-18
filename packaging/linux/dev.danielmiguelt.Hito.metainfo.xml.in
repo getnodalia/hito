@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata (software centres). Template: package.sh substitutes @VERSION@ and @DATE@
+     from Cargo.toml and the build date. -->
+<component type="desktop-application">
+  <id>dev.danielmiguelt.Hito</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT OR Apache-2.0</project_license>
+  <name>Hito</name>
+  <summary>Team chat on a server you run yourself</summary>
+  <developer id="dev.danielmiguelt">
+    <name>Nodalia</name>
+  </developer>
+  <description>
+    <p>
+      Hito is an open-source team chat: workspaces, channels, direct messages, threads and
+      reactions on a server you run yourself. The server is one binary with a SQLite file, and
+      the desktop app is native.
+    </p>
+    <ul>
+      <li>Workspaces with public and private channels, direct messages, threads, reactions and mentions</li>
+      <li>Messages are end-to-end encrypted with MLS: the server stores only ciphertext</li>
+      <li>Invitations, roles, moderation and unread counts</li>
+      <li>The server needs no outside service and runs offline</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">dev.danielmiguelt.Hito.desktop</launchable>
+  <icon type="stock">dev.danielmiguelt.Hito</icon>
+  <url type="homepage">https://getnodalia.com/hito</url>
+  <url type="bugtracker">https://github.com/getnodalia/hito/issues</url>
+  <url type="help">https://github.com/getnodalia/hito</url>
+  <categories>
+    <category>Network</category>
+    <category>InstantMessaging</category>
+    <category>Chat</category>
+  </categories>
+  <keywords>
+    <keyword>chat</keyword>
+    <keyword>messages</keyword>
+    <keyword>team</keyword>
+    <keyword>channels</keyword>
+  </keywords>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Two people in the same channel, each in their own desktop app</caption>
+      <image>https://raw.githubusercontent.com/getnodalia/hito/main/docs/screenshots/two-clients.png</image>
+    </screenshot>
+  </screenshots>
+  <branding>
+    <color type="primary" scheme_preference="light">#7fc6c9</color>
+    <color type="primary" scheme_preference="dark">#0a5f63</color>
+  </branding>
+  <requires>
+    <display_length compare="ge">760</display_length>
+  </requires>
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </supports>
+  <provides>
+    <binary>hito</binary>
+    <binary>hito-server</binary>
+  </provides>
+  <content_rating type="oars-1.1">
+    <content_attribute id="social-chat">intense</content_attribute>
+    <content_attribute id="social-info">mild</content_attribute>
+  </content_rating>
+  <releases>
+    <release version="@VERSION@" date="@DATE@"/>
+  </releases>
+</component>

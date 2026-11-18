@@ -1,0 +1,23 @@
+[package]
+name = "hito-storage"
+description = "Hito's persistence: SQLite through SQLx, with embedded, reproducible migrations."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+hito-core.workspace = true
+hito-protocol.workspace = true
+sqlx.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["fs"] }
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true
