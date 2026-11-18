@@ -12,6 +12,8 @@ set -eu
 here="$(cd "$(dirname "$0")" && pwd)"
 bin=/usr/local/bin/hito-server
 unit=/etc/systemd/system/hito-server.service
+update_unit=/etc/systemd/system/hito-server-update.service
+update_timer=/etc/systemd/system/hito-server-update.timer
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "Run it as root: sudo $0 $*" >&2
@@ -21,8 +23,11 @@ systemd=0
 [ -d /run/systemd/system ] && systemd=1
 
 if [ "${1:-}" = "--uninstall" ]; then
-  if [ "$systemd" = 1 ]; then systemctl disable --now hito-server.service 2>/dev/null || true; fi
-  rm -f "$bin" "$unit"
+  if [ "$systemd" = 1 ]; then
+    systemctl disable --now hito-server-update.timer 2>/dev/null || true
+    systemctl disable --now hito-server.service 2>/dev/null || true
+  fi
+  rm -f "$bin" "$bin.previous" "$unit" "$update_unit" "$update_timer"
   if [ "$systemd" = 1 ]; then systemctl daemon-reload; fi
   echo "Removed the Hito server. Data in /var/lib/hito and /etc/hito/hito.toml were kept."
   exit 0
@@ -61,12 +66,21 @@ install -d -m 755 "$(dirname "$unit")"
 sed "s|/usr/bin/hito-server|$bin|" "$here/hito-server.service" >"$unit.new"
 chmod 644 "$unit.new"
 mv -f "$unit.new" "$unit"
+sed "s|/usr/bin/hito-server|$bin|" "$here/hito-server-update.service" >"$update_unit.new"
+chmod 644 "$update_unit.new"
+mv -f "$update_unit.new" "$update_unit"
+install -m 644 "$here/hito-server-update.timer" "$update_timer"
 
 version="$("$bin" --version)"
 if [ "$systemd" = 1 ]; then
   systemctl daemon-reload
   systemctl enable hito-server.service >/dev/null 2>&1
   systemctl restart hito-server.service
+  # The daily self-update timer, enabled once: a timer someone disabled stays disabled.
+  if [ ! -e /var/lib/hito/.update-timer-enabled ]; then
+    systemctl enable --now hito-server-update.timer >/dev/null 2>&1 || true
+    touch /var/lib/hito/.update-timer-enabled
+  fi
   echo "Installed $version and started the hito-server service."
   echo "Check it:  curl http://127.0.0.1:7879/healthz   (answers ok)"
   echo "Logs:      journalctl -u hito-server -f"

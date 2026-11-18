@@ -27,3 +27,9 @@ trust_proxy = false
 # Listen on a public address without TLS. Passwords would travel in clear text:
 # only for an isolated lab network.
 allow_insecure_public_bind = false
+
+[updates]
+# Install new stable releases by themselves: the hito-server-update.timer checks once a day,
+# backs up the database, installs the verified package and restarts the server. Set false to
+# update by hand (sudo hito-server --config /etc/hito/hito.toml self-update).
+automatic = true

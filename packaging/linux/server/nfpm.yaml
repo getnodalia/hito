@@ -45,6 +45,12 @@ contents:
   - src: @SERVER@/hito-server.service
     dst: /usr/lib/systemd/system/hito-server.service
     file_info: { mode: 0644 }
+  - src: @SERVER@/hito-server-update.service
+    dst: /usr/lib/systemd/system/hito-server-update.service
+    file_info: { mode: 0644 }
+  - src: @SERVER@/hito-server-update.timer
+    dst: /usr/lib/systemd/system/hito-server-update.timer
+    file_info: { mode: 0644 }
   - src: @SERVER@/hito.toml
     dst: /etc/hito/hito.toml
     type: config|noreplace

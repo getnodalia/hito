@@ -14,6 +14,7 @@ pub fn tree() -> Vec<(&'static str, Vec<Entry>)> {
                 ("-", ""),
                 (tr("Preferences"), "preferences"),
                 (tr("Keyboard shortcuts"), "shortcuts"),
+                (tr("Check for updates…"), "updates"),
                 ("-", ""),
                 (tr("Log out"), "logout"),
                 (tr("Quit"), "quit"),

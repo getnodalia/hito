@@ -1,0 +1,12 @@
+[Unit]
+Description=Install the latest Hito server release
+Documentation=https://github.com/getnodalia/hito/blob/main/docs/deployment.md#upgrading
+After=network-online.target hito-server.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Root: it installs the package (or replaces the binary) and restarts hito-server. It does
+# nothing when /etc/hito/hito.toml sets [updates] automatic = false.
+ExecStart=/usr/bin/hito-server --config /etc/hito/hito.toml self-update --auto
+Nice=10
