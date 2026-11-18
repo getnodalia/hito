@@ -8,7 +8,7 @@ name = "Hito"
 # Address and port. Keep it on loopback and put a TLS reverse proxy in front
 # (docs/deployment.md). The server refuses a public address unless trust_proxy
 # or allow_insecure_public_bind is set.
-bind = "127.0.0.1:7878"
+bind = "127.0.0.1:7879"
 
 # SQLite database (created if missing).
 database = "sqlite://hito.db"

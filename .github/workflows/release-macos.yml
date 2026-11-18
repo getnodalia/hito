@@ -142,10 +142,10 @@ jobs:
           arch -x86_64 "$server" --version
           "$server" --version | grep -q "hito-server $VERSION"
           mkdir -p "$RUNNER_TEMP/srv" && cd "$RUNNER_TEMP/srv"
-          HITO_BIND=127.0.0.1:7878 "$server" >server.log 2>&1 &
+          HITO_BIND=127.0.0.1:7879 "$server" >server.log 2>&1 &
           pid=$!
           for _ in $(seq 1 30); do
-            if [[ "$(curl -fsS http://127.0.0.1:7878/healthz 2>/dev/null)" == ok ]]; then
+            if [[ "$(curl -fsS http://127.0.0.1:7879/healthz 2>/dev/null)" == ok ]]; then
               echo "server answered /healthz"
               kill "$pid"
               exit 0

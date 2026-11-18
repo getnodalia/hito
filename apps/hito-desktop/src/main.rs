@@ -15,14 +15,22 @@
 )]
 
 mod app;
+mod backstage;
 mod chrome;
+mod dates;
+mod detail;
 mod dialogs;
 mod i18n;
 mod icon;
+#[cfg(target_os = "linux")]
+mod linux_menu;
+mod menu;
 mod model;
 mod net;
+mod pages;
 mod settings;
 mod signin;
+mod templates;
 mod view;
 mod widgets;
 

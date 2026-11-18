@@ -1,7 +1,7 @@
 //! The first screen: which server, and sign in or create an account.
 
-use hito_protocol::Registration;
 use egui::{Align, Key, Layout, RichText, TextEdit, Ui, UiBuilder};
+use hito_protocol::Registration;
 use nodalia_theme::creator::{self as cr, layout, Look};
 use nodalia_theme::font_size;
 use nodalia_theme::for_egui::color;
@@ -136,7 +136,7 @@ fn form_card(
                     .color(color(p.text_primary)),
             );
             ui.label(
-                RichText::new(tr("Open source, self-hosted team chat."))
+                RichText::new(tr("Tasks, milestones and progress for your company, on a server you run yourself."))
                     .size(font_size::SMALL)
                     .color(color(p.text_secondary)),
             );
@@ -219,7 +219,7 @@ fn server_status(ui: &mut Ui, look: &Look, form: &Form) {
             status_line(
                 ui,
                 look,
-                tr("This address uses http: passwords and messages travel unencrypted. Use it only on your own computer or network."),
+                tr("This address uses http: passwords and everything the server sees travel unencrypted. Use it only on your own computer or network."),
                 true,
             );
         }

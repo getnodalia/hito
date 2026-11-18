@@ -1,10 +1,10 @@
-//! Small pieces drawn with the NDL palette: icons, icon buttons, avatars, badges, the message
-//! text renderer.
+//! Small pieces drawn with the NDL palette: icons, icon buttons, avatars, badges, progress bars
+//! and the status and priority chips.
 
-use hito_core::format::{self, Block, Inline};
 use egui::{
     vec2, Color32, CornerRadius, FontId, Frame, Margin, Response, RichText, Sense, Stroke, Ui,
 };
+use hito_core::{Priority, Progress, Status};
 use nodalia_theme::creator::Look;
 use nodalia_theme::for_egui::color;
 use nodalia_theme::{font_size, icons};
@@ -162,199 +162,75 @@ pub fn badge(ui: &mut Ui, look: &Look, count: u32, strong: bool) {
             );
         });
 }
-
-/// Render a message body: paragraphs, quotes and code blocks, with bold, italic, strike,
-/// code spans, links and mentions. Nothing in the body is ever interpreted as markup beyond
-/// that, and links only open on a click.
-pub fn message_body(ui: &mut Ui, look: &Look, body: &str, me: &str) {
+/// A thin rounded progress bar, `width` wide (the available width when 0), with the percent
+/// beside it when `label` is set.
+pub fn progress_bar(ui: &mut Ui, look: &Look, progress: Progress, width: f32, label: bool) {
     let p = &look.palette;
-    for block in format::parse(body) {
-        match block {
-            Block::Paragraph(spans) => inline_row(ui, look, &spans, me),
-            Block::Quote(spans) => {
-                Frame::NONE
-                    .inner_margin(Margin {
-                        left: 10,
-                        right: 0,
-                        top: 2,
-                        bottom: 2,
-                    })
-                    .show(ui, |ui| {
-                        let top = ui.cursor().min;
-                        inline_row(ui, look, &spans, me);
-                        let bottom = ui.min_rect().bottom();
-                        ui.painter().line_segment(
-                            [
-                                egui::pos2(top.x - 8.0, top.y),
-                                egui::pos2(top.x - 8.0, bottom),
-                            ],
-                            Stroke::new(3.0, color(p.border_strong)),
-                        );
-                    });
-            }
-            Block::Code { code, .. } => {
-                Frame::NONE
-                    .fill(color(p.surface_sunken))
-                    .stroke(Stroke::new(1.0, color(p.border_subtle)))
-                    .corner_radius(CornerRadius::same(8))
-                    .inner_margin(Margin::same(8))
-                    .show(ui, |ui| {
-                        ui.set_min_width(ui.available_width());
-                        ui.label(RichText::new(code).monospace().color(color(p.text_primary)));
-                    });
-            }
+    let width = if width <= 0.0 {
+        ui.available_width() - if label { 44.0 } else { 0.0 }
+    } else {
+        width
+    };
+    ui.horizontal(|ui| {
+        let (rect, _) = ui.allocate_exact_size(vec2(width.max(24.0), 8.0), Sense::hover());
+        let painter = ui.painter();
+        painter.rect_filled(rect, CornerRadius::same(4), color(p.control_bg_hover));
+        let fraction = progress.fraction().clamp(0.0, 1.0);
+        if fraction > 0.0 {
+            let mut done = rect;
+            done.set_width((rect.width() * fraction).max(8.0));
+            let fill = if progress.complete() {
+                color(p.status_success_fg)
+            } else {
+                color(p.accent_default)
+            };
+            painter.rect_filled(done, CornerRadius::same(4), fill);
         }
-    }
-}
-
-fn inline_row(ui: &mut Ui, look: &Look, spans: &[Inline], me: &str) {
-    if !spans.iter().any(|s| matches!(s, Inline::Link(_))) {
-        // One galley for the paragraph, so it wraps like text rather than like a row of labels.
-        ui.label(paragraph(ui, look, spans, me));
-        return;
-    }
-    let p = &look.palette;
-    ui.horizontal_wrapped(|ui| {
-        ui.spacing_mut().item_spacing.x = 0.0;
-        for span in spans {
-            match span {
-                Inline::Text(text) => {
-                    let mut lines = text.split('\n').peekable();
-                    while let Some(line) = lines.next() {
-                        if !line.is_empty() {
-                            ui.label(RichText::new(line).color(color(p.text_primary)));
-                        }
-                        if lines.peek().is_some() {
-                            ui.end_row();
-                        }
-                    }
-                }
-                Inline::Bold(t) => {
-                    ui.label(RichText::new(t).strong().color(color(p.text_primary)));
-                }
-                Inline::Italic(t) => {
-                    ui.label(RichText::new(t).italics().color(color(p.text_primary)));
-                }
-                Inline::Strike(t) => {
-                    ui.label(
-                        RichText::new(t)
-                            .strikethrough()
-                            .color(color(p.text_secondary)),
-                    );
-                }
-                Inline::Code(t) => {
-                    ui.label(
-                        RichText::new(t)
-                            .monospace()
-                            .background_color(color(p.surface_sunken))
-                            .color(color(p.text_primary)),
-                    );
-                }
-                Inline::Link(url) => {
-                    ui.hyperlink_to(RichText::new(url).color(color(p.text_link)), url);
-                }
-                Inline::Mention(name) => {
-                    let ink = if name == me {
-                        color(p.text_on_accent)
-                    } else {
-                        color(p.accent_text)
-                    };
-                    let fill = if name == me {
-                        color(p.accent_default)
-                    } else {
-                        color(p.accent_subtle)
-                    };
-                    ui.label(
-                        RichText::new(format!("@{name}"))
-                            .strong()
-                            .color(ink)
-                            .background_color(fill),
-                    );
-                }
-            }
+        if label {
+            ui.label(
+                RichText::new(format!("{} %", progress.percent()))
+                    .size(font_size::SMALL)
+                    .color(color(p.text_secondary)),
+            );
         }
     });
 }
 
-/// A paragraph without links as one layout job.
-fn paragraph(ui: &Ui, look: &Look, spans: &[Inline], me: &str) -> egui::text::LayoutJob {
-    use egui::text::{LayoutJob, TextFormat};
+/// The colours of a status: (text, background).
+pub fn status_colors(look: &Look, status: Status) -> (Color32, Color32) {
     let p = &look.palette;
-    let body = egui::TextStyle::Body.resolve(ui.style());
-    let mono = egui::TextStyle::Monospace.resolve(ui.style());
-    let plain = TextFormat::simple(body.clone(), color(p.text_primary));
-    let mut job = LayoutJob::default();
-    for span in spans {
-        match span {
-            Inline::Text(t) => job.append(t, 0.0, plain.clone()),
-            Inline::Bold(t) => {
-                job.append(
-                    t,
-                    0.0,
-                    TextFormat {
-                        color: ui.visuals().strong_text_color(),
-                        ..plain.clone()
-                    },
-                );
-            }
-            Inline::Italic(t) => job.append(
-                t,
-                0.0,
-                TextFormat {
-                    italics: true,
-                    ..plain.clone()
-                },
-            ),
-            Inline::Strike(t) => job.append(
-                t,
-                0.0,
-                TextFormat {
-                    color: color(p.text_secondary),
-                    strikethrough: Stroke::new(1.0, color(p.text_secondary)),
-                    ..plain.clone()
-                },
-            ),
-            Inline::Code(t) => job.append(
-                t,
-                0.0,
-                TextFormat {
-                    font_id: mono.clone(),
-                    background: color(p.surface_sunken),
-                    ..plain.clone()
-                },
-            ),
-            Inline::Mention(name) => {
-                let mine = name == me;
-                let ink = if mine {
-                    color(p.text_on_accent)
-                } else {
-                    color(p.accent_text)
-                };
-                let fill = if mine {
-                    color(p.accent_default)
-                } else {
-                    color(p.accent_subtle)
-                };
-                job.append(
-                    &format!("@{name}"),
-                    0.0,
-                    TextFormat {
-                        color: ink,
-                        background: fill,
-                        ..plain.clone()
-                    },
-                );
-            }
-            Inline::Link(url) => job.append(
-                url,
-                0.0,
-                TextFormat {
-                    color: color(p.text_link),
-                    ..plain.clone()
-                },
-            ),
-        }
+    match status {
+        Status::Todo => (color(p.text_secondary), color(p.control_bg_hover)),
+        Status::InProgress => (color(p.status_info_fg), color(p.status_info_bg)),
+        Status::InReview => (color(p.status_warning_fg), color(p.status_warning_bg)),
+        Status::Done => (color(p.status_success_fg), color(p.status_success_bg)),
     }
-    job.wrap.max_width = ui.available_width();
-    job
+}
+
+/// The ink of a priority: urgent and high stand out, normal and low stay quiet.
+pub fn priority_ink(look: &Look, priority: Priority) -> Color32 {
+    let p = &look.palette;
+    match priority {
+        Priority::Urgent => color(p.status_danger_fg),
+        Priority::High => color(p.status_warning_fg),
+        Priority::Normal => color(p.text_secondary),
+        Priority::Low => color(p.text_tertiary),
+    }
+}
+
+/// A small rounded label in a colour pair.
+pub fn chip(ui: &mut Ui, text: &str, ink: Color32, fill: Color32) -> Response {
+    Frame::NONE
+        .fill(fill)
+        .corner_radius(CornerRadius::same(9))
+        .inner_margin(Margin::symmetric(7, 1))
+        .show(ui, |ui| {
+            ui.label(
+                RichText::new(text)
+                    .size(font_size::CAPTION)
+                    .color(ink)
+                    .strong(),
+            );
+        })
+        .response
 }

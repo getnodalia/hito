@@ -68,7 +68,7 @@ if [ "$systemd" = 1 ]; then
   systemctl enable hito-server.service >/dev/null 2>&1
   systemctl restart hito-server.service
   echo "Installed $version and started the hito-server service."
-  echo "Check it:  curl http://127.0.0.1:7878/healthz   (answers ok)"
+  echo "Check it:  curl http://127.0.0.1:7879/healthz   (answers ok)"
   echo "Logs:      journalctl -u hito-server -f"
 else
   echo "Installed $version. systemd is not running here, so start it yourself:"

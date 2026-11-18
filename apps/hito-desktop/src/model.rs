@@ -1,71 +1,57 @@
 //! What the signed-in app knows, and how server events change it. Pure data: no egui, no
-//! network. The reducer returns [`Effect`]s for the app to carry out (refetch a list, move a read
-//! marker), which keeps it testable without a server.
+//! network. Text arrives already opened by the network side (an [`Opened`] next to each reply), so
+//! the reducer only files it. It returns [`Effect`]s for the app to carry out (refetch a list),
+//! which keeps it testable without a server.
 
 use std::collections::{HashMap, HashSet};
 
-use hito_core::{ChannelId, ChannelKind, MessageId, UserId, WorkspaceId};
+use hito_core::{
+    ActivityId, CommentId, MilestoneId, Progress, ProjectId, Status, TaskId, UserId, WorkspaceId,
+};
 use hito_protocol::{
-    Channel, Member, Message, MessagePage, Reaction, ServerEvent, Thread, User, Workspace,
+    Activity, ApiToken, Comment, Member, Milestone, MilestoneContent, Project, ServerEvent, Task,
+    TaskContent, TaskRef, User, Webhook, Workspace,
 };
 
-/// A message this client sent that the server has not confirmed yet.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Pending {
-    pub channel: ChannelId,
-    pub thread_root: Option<MessageId>,
-    pub nonce: String,
-    pub body: String,
-    pub failed: bool,
+/// Text this device opened, to be filed in the model next to the records it belongs to.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Opened {
+    pub tasks: Vec<(TaskId, TaskContent)>,
+    pub milestones: Vec<(MilestoneId, MilestoneContent)>,
+    pub comments: Vec<(CommentId, String)>,
+    pub descriptions: Vec<(ProjectId, String)>,
+    pub subjects: Vec<(ActivityId, String)>,
+    /// Whether this device holds each project's keys (false: waiting for a teammate's device).
+    pub keys: Vec<(ProjectId, bool)>,
 }
 
-/// The loaded part of a channel's top-level history, oldest first.
+/// One project's loaded tasks, milestones and recent activity.
 #[derive(Clone, Debug, Default)]
-pub struct Conversation {
-    pub messages: Vec<Message>,
-    /// Older messages exist on the server.
-    pub has_more: bool,
+pub struct Board {
+    pub tasks: Vec<Task>,
+    pub milestones: Vec<Milestone>,
+    /// Newest first.
+    pub activity: Vec<Activity>,
+    /// Older activity exists on the server.
+    pub more_activity: bool,
     pub loaded: bool,
-    pub loading: bool,
-    /// The first message that was unread when the channel was opened ("New messages" line).
-    pub first_unread: Option<MessageId>,
-    /// Unread count at the moment of opening, until the history arrives to place the line.
-    pub unread_on_open: u32,
 }
 
-impl Conversation {
-    /// Insert or replace by id, keeping the order.
-    pub fn upsert(&mut self, message: Message) {
-        upsert(&mut self.messages, message);
-    }
-
-    pub fn last_id(&self) -> Option<MessageId> {
-        self.messages.last().map(|m| m.id)
-    }
-
-    fn find_mut(&mut self, id: MessageId) -> Option<&mut Message> {
-        let i = self.messages.binary_search_by_key(&id, |m| m.id).ok()?;
-        self.messages.get_mut(i)
-    }
+/// What the centre of the window shows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Page {
+    Overview,
+    MyTasks,
+    Project(ProjectId),
 }
 
-fn upsert(list: &mut Vec<Message>, message: Message) {
-    match list.binary_search_by_key(&message.id, |m| m.id) {
-        Ok(i) => {
-            if let Some(slot) = list.get_mut(i) {
-                *slot = message;
-            }
-        }
-        Err(i) => list.insert(i, message),
-    }
-}
-
-/// An open thread: its root and replies, oldest first.
-#[derive(Clone, Debug)]
-pub struct ThreadView {
-    pub root: Message,
-    pub replies: Vec<Message>,
-    pub loaded: bool,
+/// The views of one project.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Tab {
+    Board,
+    List,
+    Milestones,
+    Activity,
 }
 
 /// The state of the real-time connection, for the status shown in the window.
@@ -77,44 +63,40 @@ pub enum Connection {
     Retrying(u64),
 }
 
-/// Someone typing, until a moment (seconds on the UI clock).
-#[derive(Clone, Debug, PartialEq)]
-pub struct Typist {
-    pub channel: ChannelId,
-    pub thread_root: Option<MessageId>,
-    pub user: User,
-    pub until: f64,
-}
-
 /// What the app must do after an event.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Effect {
     RefreshWorkspaces,
-    RefreshChannels(WorkspaceId),
-    MarkRead(ChannelId, MessageId),
+    RefreshMembers(WorkspaceId),
+    RefreshMyTasks,
+    /// A task was given to this person: tell them, if they asked to be told.
+    AssignedToMe,
 }
 
-pub const TYPING_SECONDS: f64 = 6.0;
+/// How many activity entries one page holds.
+pub const ACTIVITY_PAGE: u32 = 50;
 
 #[derive(Debug)]
 pub struct Model {
     pub me: User,
     pub workspaces: Vec<Workspace>,
     pub workspace: Option<WorkspaceId>,
-    pub channels: HashMap<WorkspaceId, Vec<Channel>>,
+    pub projects: HashMap<WorkspaceId, Vec<Project>>,
     pub members: HashMap<WorkspaceId, Vec<Member>>,
-    pub conversations: HashMap<ChannelId, Conversation>,
-    pub channel: Option<ChannelId>,
-    pub thread: Option<ThreadView>,
-    pub pending: Vec<Pending>,
+    pub boards: HashMap<ProjectId, Board>,
+    pub comments: HashMap<TaskId, Vec<Comment>>,
+    pub my_tasks: Vec<TaskRef>,
+    pub my_tasks_loaded: bool,
+    pub task_text: HashMap<TaskId, TaskContent>,
+    pub milestone_text: HashMap<MilestoneId, MilestoneContent>,
+    pub comment_text: HashMap<CommentId, String>,
+    pub description_text: HashMap<ProjectId, String>,
+    pub subject_text: HashMap<ActivityId, String>,
+    pub keys: HashMap<ProjectId, bool>,
     pub online: HashSet<UserId>,
-    pub typing: Vec<Typist>,
     pub connection: Connection,
-    /// Whether the window has focus: messages arriving in the open channel only count as read
-    /// when someone can see them.
-    pub focused: bool,
-    /// The devices that can read each conversation, as this device's encryption group sees them.
-    pub devices: HashMap<ChannelId, Vec<hito_e2e::Leaf>>,
+    pub tokens: Vec<ApiToken>,
+    pub webhooks: Vec<Webhook>,
 }
 
 impl Model {
@@ -123,17 +105,40 @@ impl Model {
             me,
             workspaces: Vec::new(),
             workspace: None,
-            channels: HashMap::new(),
+            projects: HashMap::new(),
             members: HashMap::new(),
-            conversations: HashMap::new(),
-            channel: None,
-            thread: None,
-            pending: Vec::new(),
+            boards: HashMap::new(),
+            comments: HashMap::new(),
+            my_tasks: Vec::new(),
+            my_tasks_loaded: false,
+            task_text: HashMap::new(),
+            milestone_text: HashMap::new(),
+            comment_text: HashMap::new(),
+            description_text: HashMap::new(),
+            subject_text: HashMap::new(),
+            keys: HashMap::new(),
             online: HashSet::new(),
-            typing: Vec::new(),
             connection: Connection::Connecting,
-            focused: true,
-            devices: HashMap::new(),
+            tokens: Vec::new(),
+            webhooks: Vec::new(),
+        }
+    }
+
+    // --- Workspaces and projects ----------------------------------------------------------------
+
+    /// Replace the workspace list. Returns the workspace to select when the current one is gone
+    /// (or none was selected yet).
+    pub fn set_workspaces(&mut self, mut list: Vec<Workspace>) -> Option<WorkspaceId> {
+        list.sort_by_key(|w| w.name.to_lowercase());
+        self.workspaces = list;
+        let still_there = self
+            .workspace
+            .is_some_and(|id| self.workspaces.iter().any(|w| w.id == id));
+        if still_there {
+            None
+        } else {
+            self.workspace = None;
+            self.workspaces.first().map(|w| w.id)
         }
     }
 
@@ -142,93 +147,47 @@ impl Model {
         self.workspaces.iter().find(|w| w.id == id)
     }
 
-    pub fn channel_info(&self, id: ChannelId) -> Option<&Channel> {
-        self.channels.values().flatten().find(|c| c.id == id)
+    pub fn set_projects(&mut self, ws: WorkspaceId, mut list: Vec<Project>) {
+        sort_projects(&mut list);
+        self.projects.insert(ws, list);
     }
 
-    fn channel_info_mut(&mut self, id: ChannelId) -> Option<&mut Channel> {
-        self.channels.values_mut().flatten().find(|c| c.id == id)
-    }
-
-    pub fn current_channel(&self) -> Option<&Channel> {
-        self.channel_info(self.channel?)
-    }
-
-    /// Channels of the current workspace the person has joined, split into channels and
-    /// direct conversations, each sorted by name.
-    pub fn sidebar(&self) -> (Vec<&Channel>, Vec<&Channel>) {
-        let Some(ws) = self.workspace else {
-            return (Vec::new(), Vec::new());
-        };
-        let list = self
-            .channels
-            .get(&ws)
+    /// The current workspace's projects, archived ones last.
+    pub fn current_projects(&self) -> &[Project] {
+        self.workspace
+            .and_then(|ws| self.projects.get(&ws))
             .map(Vec::as_slice)
-            .unwrap_or_default();
-        let mut rooms: Vec<&Channel> = list
-            .iter()
-            .filter(|c| c.kind != ChannelKind::Direct && (c.joined || Some(c.id) == self.channel))
-            .collect();
-        let mut direct: Vec<&Channel> = list
-            .iter()
-            .filter(|c| c.kind == ChannelKind::Direct)
-            .collect();
-        rooms.sort_by(|a, b| a.name.cmp(&b.name));
-        direct.sort_by_key(|c| peer_name(c));
-        (rooms, direct)
+            .unwrap_or(&[])
     }
 
-    /// Public channels of the current workspace the person has not joined.
-    pub fn browsable(&self) -> Vec<&Channel> {
-        let Some(ws) = self.workspace else {
-            return Vec::new();
-        };
-        let mut list: Vec<&Channel> = self
-            .channels
-            .get(&ws)
-            .into_iter()
-            .flatten()
-            .filter(|c| c.kind == ChannelKind::Public && !c.joined && !c.archived)
-            .collect();
-        list.sort_by(|a, b| a.name.cmp(&b.name));
-        list
+    pub fn project(&self, id: ProjectId) -> Option<&Project> {
+        self.projects.values().flatten().find(|p| p.id == id)
     }
 
-    /// Unread totals for a workspace: messages and mentions.
-    pub fn workspace_unread(&self, ws: WorkspaceId) -> (u32, u32) {
-        self.channels
-            .get(&ws)
-            .into_iter()
-            .flatten()
-            .filter(|c| c.joined)
-            .fold((0, 0), |(u, m), c| {
-                (u.saturating_add(c.unread), m.saturating_add(c.mentions))
-            })
-    }
-
-    pub fn set_workspaces(&mut self, list: Vec<Workspace>) {
-        self.workspaces = list;
-        self.workspaces.sort_by_key(|w| w.name.to_lowercase());
-        if self
-            .workspace
-            .is_none_or(|id| !self.workspaces.iter().any(|w| w.id == id))
-        {
-            self.workspace = self.workspaces.first().map(|w| w.id);
+    fn upsert_project(&mut self, project: Project) {
+        let list = self.projects.entry(project.workspace_id).or_default();
+        match list.iter_mut().find(|p| p.id == project.id) {
+            Some(slot) => *slot = project,
+            None => list.push(project),
         }
+        sort_projects(list);
     }
 
-    pub fn set_channels(&mut self, ws: WorkspaceId, list: Vec<Channel>) {
-        if self.channel.is_some_and(|id| {
-            self.channel_info(id).is_some_and(|c| c.workspace_id == ws)
-                && !list.iter().any(|c| c.id == id)
-        }) {
-            self.channel = None;
-            self.thread = None;
+    fn remove_project(&mut self, ws: WorkspaceId, id: ProjectId) {
+        if let Some(list) = self.projects.get_mut(&ws) {
+            list.retain(|p| p.id != id);
         }
-        self.channels.insert(ws, list);
+        self.boards.remove(&id);
+        self.my_tasks.retain(|t| t.task.project_id != id);
     }
 
-    pub fn set_members(&mut self, ws: WorkspaceId, list: Vec<Member>) {
+    pub fn set_members(&mut self, ws: WorkspaceId, mut list: Vec<Member>) {
+        list.sort_by(|a, b| {
+            a.user
+                .display_name
+                .to_lowercase()
+                .cmp(&b.user.display_name.to_lowercase())
+        });
         for m in &list {
             if m.online {
                 self.online.insert(m.user.id);
@@ -237,175 +196,249 @@ impl Model {
         self.members.insert(ws, list);
     }
 
-    /// Insert or replace one channel (after creating, joining or opening it).
-    pub fn put_channel(&mut self, channel: Channel) {
-        let list = self.channels.entry(channel.workspace_id).or_default();
-        match list.iter_mut().find(|c| c.id == channel.id) {
-            Some(slot) => *slot = channel,
-            None => list.push(channel),
-        }
+    /// The current workspace's members.
+    pub fn current_members(&self) -> &[Member] {
+        self.workspace
+            .and_then(|ws| self.members.get(&ws))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
     }
 
-    /// Make `id` the open channel. Returns the read marker to move, if there is unread.
-    pub fn open_channel(&mut self, id: ChannelId) -> Option<Effect> {
-        if self.channel != Some(id) {
-            self.thread = None;
+    /// Someone's display name, looked up in every workspace this person shares with them.
+    pub fn name_of(&self, user: UserId) -> Option<&str> {
+        if user == self.me.id {
+            return Some(&self.me.display_name);
         }
-        self.channel = Some(id);
-        let (unread, last, ws) = match self.channel_info(id) {
-            Some(c) => (c.unread, c.last_message_id, c.workspace_id),
-            None => (0, None, self.workspace?),
-        };
-        self.workspace = Some(ws);
-        let conv = self.conversations.entry(id).or_default();
-        conv.unread_on_open = unread;
-        conv.first_unread = None;
-        if unread > 0 {
-            if conv.loaded {
-                place_unread_line(conv, &self.me);
-            }
-            if let Some(c) = self.channel_info_mut(id) {
-                c.unread = 0;
-                c.mentions = 0;
-            }
-            return last.map(|m| Effect::MarkRead(id, m));
-        }
-        None
+        self.members
+            .values()
+            .flatten()
+            .find(|m| m.user.id == user)
+            .map(|m| m.user.display_name.as_str())
     }
 
-    pub fn apply_history(
+    // --- Boards -----------------------------------------------------------------------------------
+
+    /// File a project's freshly loaded tasks, milestones and activity.
+    pub fn set_board(
         &mut self,
-        channel: ChannelId,
-        before: Option<MessageId>,
-        after: Option<MessageId>,
-        page: MessagePage,
+        project: Project,
+        tasks: Vec<Task>,
+        milestones: Vec<Milestone>,
+        activity: Vec<Activity>,
     ) {
-        let me = self.me.clone();
-        let conv = self.conversations.entry(channel).or_default();
-        if after.is_some() && page.has_more {
-            // Too much was missed to stitch: start over from the latest page.
-            conv.messages.clear();
-            conv.loaded = false;
-            return;
-        }
-        let first_load = !conv.loaded;
-        for message in page.messages {
-            conv.upsert(message);
-        }
-        if after.is_none() {
-            conv.has_more = page.has_more;
-        }
-        if before.is_none() && after.is_none() {
-            conv.loaded = true;
-        }
-        conv.loading = false;
-        if first_load && conv.unread_on_open > 0 {
-            place_unread_line(conv, &me);
-        }
-    }
-
-    pub fn set_thread(&mut self, thread: Thread) {
-        if let Some(conv) = self.conversations.get_mut(&thread.root.channel_id) {
-            if conv.find_mut(thread.root.id).is_some() {
-                conv.upsert(thread.root.clone());
-            }
-        }
-        let mut replies = thread.replies;
-        replies.sort_by_key(|m| m.id);
-        self.thread = Some(ThreadView {
-            root: thread.root,
-            replies,
+        let more_activity = activity.len() >= ACTIVITY_PAGE as usize;
+        let id = project.id;
+        self.upsert_project(project);
+        let mut board = Board {
+            tasks,
+            milestones,
+            activity,
+            more_activity,
             loaded: true,
-        });
+        };
+        sort_tasks(&mut board.tasks);
+        sort_milestones(&mut board.milestones);
+        self.boards.insert(id, board);
     }
 
-    pub fn set_reactions(&mut self, id: MessageId, reactions: Vec<Reaction>) {
-        self.for_each_copy(id, |m| m.reactions = reactions.clone());
-    }
-
-    /// Apply `f` to every loaded copy of a message (channel history and thread).
-    fn for_each_copy(&mut self, id: MessageId, mut f: impl FnMut(&mut Message)) {
-        for conv in self.conversations.values_mut() {
-            if let Some(m) = conv.find_mut(id) {
-                f(m);
-            }
-        }
-        if let Some(thread) = &mut self.thread {
-            if thread.root.id == id {
-                f(&mut thread.root);
-            }
-            if let Some(m) = thread.replies.iter_mut().find(|m| m.id == id) {
-                f(m);
+    pub fn add_older_activity(&mut self, project: ProjectId, older: Vec<Activity>) {
+        let Some(board) = self.boards.get_mut(&project) else {
+            return;
+        };
+        board.more_activity = older.len() >= ACTIVITY_PAGE as usize;
+        for a in older {
+            if !board.activity.iter().any(|b| b.id == a.id) {
+                board.activity.push(a);
             }
         }
     }
 
-    /// Replace a message everywhere it is shown (after an edit).
-    pub fn replace_message(&mut self, message: Message) {
-        let copy = message.clone();
-        self.for_each_copy(message.id, move |m| *m = copy.clone());
+    pub fn board(&self, project: ProjectId) -> Option<&Board> {
+        self.boards.get(&project)
     }
 
-    pub fn typists(
-        &self,
-        channel: ChannelId,
-        thread_root: Option<MessageId>,
-        now: f64,
-    ) -> Vec<&User> {
-        self.typing
-            .iter()
-            .filter(|t| t.channel == channel && t.thread_root == thread_root && t.until > now)
-            .map(|t| &t.user)
-            .collect()
+    /// A project's tasks in one column, in their order.
+    pub fn column(&self, project: ProjectId, status: Status) -> Vec<&Task> {
+        self.boards
+            .get(&project)
+            .map(|b| b.tasks.iter().filter(|t| t.status == status).collect())
+            .unwrap_or_default()
     }
 
-    /// Fold one server event in. `now` is the UI clock in seconds.
-    pub fn apply(&mut self, event: ServerEvent, now: f64) -> Vec<Effect> {
+    /// A project's progress: counted from its tasks once they are loaded (so it moves the moment
+    /// a card does), from the server's count before.
+    pub fn progress(&self, project: &Project) -> Progress {
+        match self.boards.get(&project.id) {
+            Some(b) if b.loaded => Progress::of(b.tasks.iter().map(|t| t.status)),
+            _ => project.progress,
+        }
+    }
+
+    /// A milestone's progress, counted from the loaded tasks.
+    pub fn milestone_progress(&self, milestone: &Milestone) -> Progress {
+        match self.boards.get(&milestone.project_id) {
+            Some(b) if b.loaded => Progress::of(
+                b.tasks
+                    .iter()
+                    .filter(|t| t.milestone_id == Some(milestone.id))
+                    .map(|t| t.status),
+            ),
+            _ => milestone.progress,
+        }
+    }
+
+    /// A task wherever it is loaded: a project's board, or this person's own list.
+    pub fn task(&self, id: TaskId) -> Option<&Task> {
+        self.boards
+            .values()
+            .flat_map(|b| b.tasks.iter())
+            .chain(self.my_tasks.iter().map(|r| &r.task))
+            .find(|t| t.id == id)
+    }
+
+    /// A task's title, when this device could open it.
+    pub fn title(&self, id: TaskId) -> Option<&str> {
+        self.task_text.get(&id).map(|c| c.title.as_str())
+    }
+
+    pub fn milestone_name(&self, id: MilestoneId) -> Option<&str> {
+        self.milestone_text.get(&id).map(|c| c.name.as_str())
+    }
+
+    /// Whether this device is still waiting for `project`'s keys.
+    pub fn waiting_for_keys(&self, project: ProjectId) -> bool {
+        self.keys.get(&project) == Some(&false)
+    }
+
+    /// Put a saved task in place (from a reply or an event).
+    pub fn upsert_task(&mut self, task: Task) -> Vec<Effect> {
         let mut effects = Vec::new();
+        let mine = task.assignee_id == Some(self.me.id);
+        let was_mine = self.my_tasks.iter().any(|r| r.task.id == task.id);
+        if mine && !was_mine && self.my_tasks_loaded {
+            if task.created_by != Some(self.me.id) && task.updated_at > 0 {
+                effects.push(Effect::AssignedToMe);
+            }
+            effects.push(Effect::RefreshMyTasks);
+        }
+        if was_mine && !mine {
+            self.my_tasks.retain(|r| r.task.id != task.id);
+        }
+        if let Some(r) = self.my_tasks.iter_mut().find(|r| r.task.id == task.id) {
+            r.task = task.clone();
+        }
+        if let Some(board) = self.boards.get_mut(&task.project_id) {
+            match board.tasks.iter_mut().find(|t| t.id == task.id) {
+                // An older copy never overwrites a newer one (a reply and its event can cross).
+                Some(slot) if slot.revision > task.revision => {}
+                Some(slot) => *slot = task,
+                None => board.tasks.push(task),
+            }
+            sort_tasks(&mut board.tasks);
+        }
+        effects
+    }
+
+    pub fn remove_task(&mut self, project: ProjectId, id: TaskId) {
+        if let Some(board) = self.boards.get_mut(&project) {
+            board.tasks.retain(|t| t.id != id);
+        }
+        self.my_tasks.retain(|r| r.task.id != id);
+        self.comments.remove(&id);
+    }
+
+    pub fn upsert_milestone(&mut self, milestone: Milestone) {
+        if let Some(board) = self.boards.get_mut(&milestone.project_id) {
+            match board.milestones.iter_mut().find(|m| m.id == milestone.id) {
+                Some(slot) => *slot = milestone,
+                None => board.milestones.push(milestone),
+            }
+            sort_milestones(&mut board.milestones);
+        }
+    }
+
+    fn remove_milestone(&mut self, project: ProjectId, id: MilestoneId) {
+        if let Some(board) = self.boards.get_mut(&project) {
+            board.milestones.retain(|m| m.id != id);
+            for t in &mut board.tasks {
+                if t.milestone_id == Some(id) {
+                    t.milestone_id = None;
+                }
+            }
+        }
+    }
+
+    pub fn set_comments(&mut self, task: TaskId, mut list: Vec<Comment>) {
+        list.sort_by_key(|c| (c.created_at, c.id));
+        self.comments.insert(task, list);
+    }
+
+    pub fn add_comment(&mut self, comment: Comment) {
+        if let Some(list) = self.comments.get_mut(&comment.task_id) {
+            if !list.iter().any(|c| c.id == comment.id) {
+                list.push(comment);
+                list.sort_by_key(|c| (c.created_at, c.id));
+            }
+        }
+    }
+
+    fn remove_comment(&mut self, task: TaskId, id: CommentId) {
+        if let Some(list) = self.comments.get_mut(&task) {
+            list.retain(|c| c.id != id);
+        }
+    }
+
+    pub fn set_my_tasks(&mut self, list: Vec<TaskRef>) {
+        self.my_tasks = list;
+        self.my_tasks_loaded = true;
+    }
+
+    /// File text this device opened.
+    pub fn absorb(&mut self, opened: Opened) {
+        self.task_text.extend(opened.tasks);
+        self.milestone_text.extend(opened.milestones);
+        self.comment_text.extend(opened.comments);
+        self.description_text.extend(opened.descriptions);
+        self.subject_text.extend(opened.subjects);
+        self.keys.extend(opened.keys);
+    }
+
+    // --- Events -----------------------------------------------------------------------------------
+
+    /// Apply a server event.
+    pub fn apply(&mut self, event: ServerEvent) -> Vec<Effect> {
         match event {
-            ServerEvent::MessageCreated { message } => self.message_created(message, &mut effects),
-            ServerEvent::MessageUpdated { message } => {
-                let id = message.id;
-                let channel = message.channel_id;
-                let known = self.conversations.get(&channel).is_some_and(|c| {
-                    c.loaded && c.messages.binary_search_by_key(&id, |m| m.id).is_ok()
-                }) || self
-                    .thread
-                    .as_ref()
-                    .is_some_and(|t| t.root.id == id || t.replies.iter().any(|r| r.id == id));
-                if known {
-                    self.replace_message(message);
+            ServerEvent::ProjectChanged { project } => {
+                if !self.projects.contains_key(&project.workspace_id) {
+                    return vec![Effect::RefreshWorkspaces];
                 }
+                self.upsert_project(project);
             }
-            ServerEvent::MessageDeleted { message_id, .. } => {
-                self.for_each_copy(message_id, |m| {
-                    m.deleted = true;
-                    m.body.clear();
-                    m.reactions.clear();
-                });
-            }
-            ServerEvent::ReactionsChanged {
-                message_id,
-                reactions,
-                ..
-            } => {
-                self.set_reactions(message_id, reactions);
-            }
-            ServerEvent::ChannelChanged { workspace_id, .. } => {
-                effects.push(Effect::RefreshChannels(workspace_id));
-            }
-            ServerEvent::ChannelRemoved {
+            ServerEvent::ProjectRemoved {
                 workspace_id,
-                channel_id,
-            } => {
-                if let Some(list) = self.channels.get_mut(&workspace_id) {
-                    list.retain(|c| c.id != channel_id);
-                }
-                self.conversations.remove(&channel_id);
-                self.pending.retain(|p| p.channel != channel_id);
-                if self.channel == Some(channel_id) {
-                    self.channel = None;
-                    self.thread = None;
+                project_id,
+            } => self.remove_project(workspace_id, project_id),
+            ServerEvent::MilestoneChanged { milestone } => self.upsert_milestone(milestone),
+            ServerEvent::MilestoneDeleted {
+                project_id,
+                milestone_id,
+            } => self.remove_milestone(project_id, milestone_id),
+            ServerEvent::TaskChanged { task } => return self.upsert_task(task),
+            ServerEvent::TaskDeleted {
+                project_id,
+                task_id,
+            } => self.remove_task(project_id, task_id),
+            ServerEvent::CommentAdded { comment, .. } => self.add_comment(comment),
+            ServerEvent::CommentDeleted {
+                task_id,
+                comment_id,
+                ..
+            } => self.remove_comment(task_id, comment_id),
+            ServerEvent::Activity { activity } => {
+                if let Some(board) = self.boards.get_mut(&activity.project_id) {
+                    if !board.activity.iter().any(|a| a.id == activity.id) {
+                        board.activity.insert(0, activity);
+                    }
                 }
             }
             ServerEvent::MemberJoined {
@@ -413,47 +446,9 @@ impl Model {
                 member,
             } => {
                 if member.user.id == self.me.id {
-                    effects.push(Effect::RefreshWorkspaces);
-                } else {
-                    let list = self.members.entry(workspace_id).or_default();
-                    match list.iter_mut().find(|m| m.user.id == member.user.id) {
-                        Some(slot) => *slot = member,
-                        None => list.push(member),
-                    }
-                    // Joining a workspace joins its public channels, so their counts moved.
-                    effects.push(Effect::RefreshChannels(workspace_id));
+                    return vec![Effect::RefreshWorkspaces];
                 }
-            }
-            ServerEvent::ReadMarker {
-                channel_id,
-                message_id,
-            } => {
-                if let Some(c) = self.channel_info_mut(channel_id) {
-                    if c.last_message_id.is_none_or(|last| message_id >= last) {
-                        c.unread = 0;
-                        c.mentions = 0;
-                    }
-                }
-            }
-            ServerEvent::Typing {
-                channel_id,
-                thread_root_id,
-                user,
-            } => {
-                if user.id != self.me.id {
-                    self.typing.retain(|t| {
-                        t.until > now
-                            && !(t.user.id == user.id
-                                && t.channel == channel_id
-                                && t.thread_root == thread_root_id)
-                    });
-                    self.typing.push(Typist {
-                        channel: channel_id,
-                        thread_root: thread_root_id,
-                        user,
-                        until: now + TYPING_SECONDS,
-                    });
-                }
+                return vec![Effect::RefreshMembers(workspace_id)];
             }
             ServerEvent::Presence { user_id, online } => {
                 if online {
@@ -461,466 +456,225 @@ impl Model {
                 } else {
                     self.online.remove(&user_id);
                 }
-                for list in self.members.values_mut() {
-                    for m in list.iter_mut().filter(|m| m.user.id == user_id) {
-                        m.online = online;
-                    }
-                }
             }
-            // The network side already caught the conversation's encryption up.
-            ServerEvent::MlsChanged { .. }
-            | ServerEvent::Ready { .. }
+            ServerEvent::Ready { .. }
             | ServerEvent::Error { .. }
+            | ServerEvent::MlsChanged { .. }
             | ServerEvent::Pong => {}
         }
-        effects
+        Vec::new()
     }
 
-    /// Only new messages in joined channels that are not being viewed need an OS alert.
-    #[cfg(any(target_os = "linux", test))]
-    pub fn should_notify(&self, message: &Message) -> bool {
-        if message.author.id == self.me.id
-            || (self.focused && self.channel == Some(message.channel_id))
-        {
-            return false;
-        }
-        self.channel_info(message.channel_id)
-            .is_some_and(|channel| {
-                channel.joined && channel.last_message_id.is_none_or(|last| message.id > last)
-            })
-    }
-
-    fn message_created(&mut self, message: Message, effects: &mut Vec<Effect>) {
-        let mine = message.author.id == self.me.id;
-        if mine {
-            if let Some(nonce) = &message.client_nonce {
-                self.pending.retain(|p| &p.nonce != nonce);
-            }
-        }
-        // Whoever posted has stopped typing.
-        self.typing
-            .retain(|t| !(t.user.id == message.author.id && t.channel == message.channel_id));
-
-        let channel = message.channel_id;
-        let id = message.id;
-        let mentions_me = hito_core::format::mentions(&message.body).contains(&self.me.username);
-        match message.thread_root_id {
-            Some(root) => {
-                if let Some(thread) = &mut self.thread {
-                    if thread.root.id == root {
-                        upsert(&mut thread.replies, message);
-                    }
-                }
-            }
-            None => {
-                if let Some(conv) = self.conversations.get_mut(&channel) {
-                    if conv.loaded {
-                        conv.upsert(message);
-                    }
-                }
-            }
-        }
-        let seen = self.channel == Some(channel) && self.focused;
-        let Some(info) = self.channel_info_mut(channel) else {
-            // A channel this client has not seen yet: a new conversation, or one it was added to.
-            if let Some(ws) = self.workspace {
-                effects.push(Effect::RefreshChannels(ws));
-            }
-            return;
-        };
-        if info.last_message_id.is_none_or(|last| id > last) {
-            info.last_message_id = Some(id);
-        }
-        if !info.joined && !mine {
-            return;
-        }
-        if mine {
-            info.joined = true;
-        } else if seen {
-            effects.push(Effect::MarkRead(channel, id));
-        } else {
-            info.unread = info.unread.saturating_add(1);
-            if mentions_me || info.kind == ChannelKind::Direct {
-                info.mentions = info.mentions.saturating_add(1);
-            }
-        }
+    /// The tasks given to this person that are not done, most urgent first: overdue, then by due
+    /// date, then by priority.
+    pub fn open_my_tasks(&self) -> Vec<&TaskRef> {
+        let mut list: Vec<&TaskRef> = self
+            .my_tasks
+            .iter()
+            .filter(|r| !r.task.status.is_done())
+            .collect();
+        list.sort_by(|a, b| {
+            let due = |t: &Task| t.due_at.unwrap_or(i64::MAX);
+            due(&a.task)
+                .cmp(&due(&b.task))
+                .then(b.task.priority.cmp(&a.task.priority))
+                .then(a.task.id.cmp(&b.task.id))
+        });
+        list
     }
 }
 
-/// Put the "New messages" line before the oldest of the last `unread_on_open` messages that
-/// others wrote.
-fn place_unread_line(conv: &mut Conversation, me: &User) {
-    let wanted = usize::try_from(conv.unread_on_open).unwrap_or(usize::MAX);
-    conv.first_unread = conv
-        .messages
-        .iter()
-        .rev()
-        .filter(|m| m.author.id != me.id)
-        .take(wanted)
-        .last()
-        .map(|m| m.id);
-    conv.unread_on_open = 0;
+fn sort_projects(list: &mut [Project]) {
+    list.sort_by(|a, b| {
+        a.archived
+            .cmp(&b.archived)
+            .then(a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
 }
 
-/// The name a direct conversation is listed under.
-pub fn peer_name(channel: &Channel) -> String {
-    channel
-        .peer
-        .as_ref()
-        .map(|p| p.display_name.clone())
-        .unwrap_or_else(|| channel.name.clone())
+fn sort_tasks(list: &mut [Task]) {
+    list.sort_by(|a, b| a.rank.total_cmp(&b.rank).then(a.id.cmp(&b.id)));
+}
+
+fn sort_milestones(list: &mut [Milestone]) {
+    list.sort_by(|a, b| {
+        let due = |m: &Milestone| m.due_at.unwrap_or(i64::MAX);
+        due(a).cmp(&due(b)).then(a.id.cmp(&b.id))
+    });
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hito_core::Role;
+    use hito_core::{Priority, Role};
+    use hito_protocol::Sealed;
 
     fn user(id: i64, name: &str) -> User {
         User {
             id: UserId(id),
-            username: name.into(),
-            display_name: name.to_uppercase(),
+            username: name.to_lowercase(),
+            display_name: name.into(),
         }
     }
 
-    fn channel(id: i64, name: &str) -> Channel {
-        Channel {
-            id: ChannelId(id),
-            workspace_id: WorkspaceId(1),
+    fn sealed() -> Sealed {
+        Sealed {
+            key_id: 1,
+            data: String::new(),
+        }
+    }
+
+    fn project(id: i64, ws: i64, name: &str) -> Project {
+        Project {
+            id: ProjectId(id),
+            workspace_id: WorkspaceId(ws),
             name: name.into(),
-            topic: String::new(),
-            kind: ChannelKind::Public,
+            description: None,
             archived: false,
             created_by: None,
             created_at: 0,
-            joined: true,
-            unread: 0,
-            mentions: 0,
-            last_message_id: None,
-            member_count: 2,
-            peer: None,
+            updated_at: 0,
+            progress: Progress::default(),
+            overdue: 0,
+            guests: Vec::new(),
         }
     }
 
-    fn message(id: i64, ch: i64, author: &User, body: &str) -> Message {
-        Message {
-            id: MessageId(id),
-            channel_id: ChannelId(ch),
-            author: author.clone(),
-            thread_root_id: None,
-            body: body.into(),
-            created_at: id * 1000,
-            edited_at: None,
-            deleted: false,
-            reply_count: 0,
-            last_reply_at: None,
-            reactions: Vec::new(),
-            client_nonce: None,
-            encrypted: false,
-            content_seq: None,
-        }
-    }
-
-    fn model() -> Model {
-        let mut m = Model::new(user(1, "ana"));
-        m.set_workspaces(vec![Workspace {
-            id: WorkspaceId(1),
-            name: "Equipo".into(),
-            role: Role::Owner,
+    fn task(id: i64, project: i64, status: Status, rank: f64) -> Task {
+        Task {
+            id: TaskId(id),
+            project_id: ProjectId(project),
+            milestone_id: None,
+            content: sealed(),
+            status,
+            priority: Priority::Normal,
+            assignee_id: None,
+            due_at: None,
+            rank,
+            created_by: None,
             created_at: 0,
-        }]);
-        m.set_channels(
-            WorkspaceId(1),
-            vec![channel(10, "general"), channel(11, "random")],
-        );
-        m
-    }
-
-    #[test]
-    fn notifications_ignore_own_seen_unknown_and_old_messages() {
-        let mut m = model();
-        let other = user(2, "luis");
-        let msg = message(5, 10, &other, "private");
-        assert!(m.should_notify(&msg));
-        m.channel = Some(ChannelId(10));
-        assert!(!m.should_notify(&msg));
-        m.focused = false;
-        assert!(m.should_notify(&msg));
-        assert!(!m.should_notify(&message(6, 10, &m.me, "mine")));
-        assert!(!m.should_notify(&message(6, 999, &other, "unknown")));
-        m.channel_info_mut(ChannelId(10)).unwrap().joined = false;
-        assert!(!m.should_notify(&msg));
-        m.channel_info_mut(ChannelId(10)).unwrap().joined = true;
-        m.channel_info_mut(ChannelId(10)).unwrap().last_message_id = Some(MessageId(5));
-        assert!(!m.should_notify(&msg));
-        assert!(m.should_notify(&message(6, 10, &other, "new")));
-    }
-
-    #[test]
-    fn messages_land_once_in_order_and_replace_their_pending_copy() {
-        let mut m = model();
-        let luis = user(2, "luis");
-        let ana = m.me.clone();
-        m.open_channel(ChannelId(10));
-        m.apply_history(
-            ChannelId(10),
-            None,
-            None,
-            MessagePage {
-                messages: vec![message(5, 10, &luis, "hola")],
-                has_more: false,
-            },
-        );
-        m.pending.push(Pending {
-            channel: ChannelId(10),
-            thread_root: None,
-            nonce: "n1".into(),
-            body: "qué tal".into(),
-            failed: false,
-        });
-        let mut mine = message(7, 10, &ana, "qué tal");
-        mine.client_nonce = Some("n1".into());
-        m.apply(
-            ServerEvent::MessageCreated {
-                message: mine.clone(),
-            },
-            0.0,
-        );
-        m.apply(ServerEvent::MessageCreated { message: mine }, 0.0);
-        m.apply(
-            ServerEvent::MessageCreated {
-                message: message(6, 10, &luis, "¿estás?"),
-            },
-            0.0,
-        );
-        let ids: Vec<i64> = m.conversations[&ChannelId(10)]
-            .messages
-            .iter()
-            .map(|x| x.id.0)
-            .collect();
-        assert_eq!(ids, [5, 6, 7]);
-        assert!(m.pending.is_empty());
-    }
-
-    #[test]
-    fn unread_counts_only_what_nobody_has_seen() {
-        let mut m = model();
-        let luis = user(2, "luis");
-        m.open_channel(ChannelId(10));
-        let effects = m.apply(
-            ServerEvent::MessageCreated {
-                message: message(1, 10, &luis, "a"),
-            },
-            0.0,
-        );
-        assert_eq!(effects, [Effect::MarkRead(ChannelId(10), MessageId(1))]);
-        assert_eq!(m.channel_info(ChannelId(10)).unwrap().unread, 0);
-
-        m.apply(
-            ServerEvent::MessageCreated {
-                message: message(2, 11, &luis, "b"),
-            },
-            0.0,
-        );
-        m.apply(
-            ServerEvent::MessageCreated {
-                message: message(3, 11, &luis, "hola @ana"),
-            },
-            0.0,
-        );
-        let random = m.channel_info(ChannelId(11)).unwrap();
-        assert_eq!((random.unread, random.mentions), (2, 1));
-        assert_eq!(m.workspace_unread(WorkspaceId(1)), (2, 1));
-
-        m.focused = false;
-        m.apply(
-            ServerEvent::MessageCreated {
-                message: message(4, 10, &luis, "c"),
-            },
-            0.0,
-        );
-        assert_eq!(m.channel_info(ChannelId(10)).unwrap().unread, 1);
-
-        let effect = m.open_channel(ChannelId(11));
-        assert_eq!(effect, Some(Effect::MarkRead(ChannelId(11), MessageId(3))));
-        assert_eq!(m.channel_info(ChannelId(11)).unwrap().unread, 0);
-    }
-
-    #[test]
-    fn the_new_messages_line_sits_before_the_first_unread() {
-        let mut m = model();
-        let luis = user(2, "luis");
-        let ana = m.me.clone();
-        if let Some(c) = m.channel_info_mut(ChannelId(10)) {
-            c.unread = 2;
-            c.last_message_id = Some(MessageId(4));
+            updated_at: 0,
+            completed_at: None,
+            comment_count: 0,
+            revision: 1,
         }
-        m.open_channel(ChannelId(10));
-        let page = vec![
-            message(1, 10, &luis, "a"),
-            message(2, 10, &luis, "b"),
-            message(3, 10, &ana, "mine"),
-            message(4, 10, &luis, "c"),
-        ];
-        m.apply_history(
-            ChannelId(10),
-            None,
-            None,
-            MessagePage {
-                messages: page,
-                has_more: false,
-            },
-        );
+    }
+
+    fn workspace(id: i64, name: &str) -> Workspace {
+        Workspace {
+            id: WorkspaceId(id),
+            name: name.into(),
+            role: Role::Member,
+            created_at: 0,
+        }
+    }
+
+    #[test]
+    fn workspaces_keep_the_selection_or_pick_the_first() {
+        let mut m = Model::new(user(1, "Ana"));
+        let pick = m.set_workspaces(vec![workspace(2, "Zeta"), workspace(3, "Alfa")]);
+        assert_eq!(pick, Some(WorkspaceId(3)), "sorted by name, first selected");
+        m.workspace = pick;
+        assert_eq!(m.set_workspaces(vec![workspace(3, "Alfa")]), None);
         assert_eq!(
-            m.conversations[&ChannelId(10)].first_unread,
-            Some(MessageId(2))
+            m.set_workspaces(vec![workspace(2, "Zeta")]),
+            Some(WorkspaceId(2))
         );
     }
 
     #[test]
-    fn threads_edits_deletions_and_reactions_reach_every_copy() {
-        let mut m = model();
-        let luis = user(2, "luis");
-        m.open_channel(ChannelId(10));
-        let root = message(1, 10, &luis, "root");
-        m.apply_history(
-            ChannelId(10),
-            None,
-            None,
-            MessagePage {
-                messages: vec![root.clone()],
-                has_more: false,
-            },
+    fn a_moved_card_changes_progress_at_once() {
+        let mut m = Model::new(user(1, "Ana"));
+        let p = project(10, 1, "Web");
+        m.set_board(
+            p.clone(),
+            vec![
+                task(1, 10, Status::Todo, 2.0),
+                task(2, 10, Status::Done, 1.0),
+            ],
+            Vec::new(),
+            Vec::new(),
         );
-        m.set_thread(Thread {
-            root: root.clone(),
-            replies: Vec::new(),
+        assert_eq!(m.progress(&p).percent(), 50);
+        let mut moved = task(1, 10, Status::Done, 2.0);
+        moved.revision = 2;
+        m.apply(ServerEvent::TaskChanged { task: moved });
+        assert_eq!(m.progress(&p).percent(), 100);
+        assert_eq!(m.column(ProjectId(10), Status::Todo).len(), 0);
+        let order: Vec<i64> = m
+            .column(ProjectId(10), Status::Done)
+            .iter()
+            .map(|t| t.id.0)
+            .collect();
+        assert_eq!(order, vec![2, 1], "ordered by rank");
+    }
+
+    #[test]
+    fn an_older_copy_never_replaces_a_newer_one() {
+        let mut m = Model::new(user(1, "Ana"));
+        m.set_board(project(10, 1, "Web"), vec![], vec![], vec![]);
+        let mut newer = task(1, 10, Status::Done, 1.0);
+        newer.revision = 3;
+        m.upsert_task(newer);
+        m.upsert_task(task(1, 10, Status::Todo, 1.0));
+        assert_eq!(m.task(TaskId(1)).map(|t| t.status), Some(Status::Done));
+    }
+
+    #[test]
+    fn tasks_given_to_me_join_my_list_and_leave_it() {
+        let mut m = Model::new(user(1, "Ana"));
+        m.set_my_tasks(Vec::new());
+        let mut t = task(5, 10, Status::Todo, 1.0);
+        t.assignee_id = Some(UserId(1));
+        t.created_by = Some(UserId(2));
+        t.updated_at = 5;
+        let effects = m.apply(ServerEvent::TaskChanged { task: t.clone() });
+        assert!(effects.contains(&Effect::AssignedToMe));
+        assert!(effects.contains(&Effect::RefreshMyTasks));
+        m.set_my_tasks(vec![TaskRef {
+            task: t.clone(),
+            project_name: "Web".into(),
+            workspace_id: WorkspaceId(1),
+        }]);
+        t.assignee_id = Some(UserId(2));
+        t.revision = 2;
+        m.apply(ServerEvent::TaskChanged { task: t });
+        assert!(m.my_tasks.is_empty());
+    }
+
+    #[test]
+    fn a_removed_project_takes_its_board_and_tasks_along() {
+        let mut m = Model::new(user(1, "Ana"));
+        m.set_board(
+            project(10, 1, "Web"),
+            vec![task(1, 10, Status::Todo, 1.0)],
+            vec![],
+            vec![],
+        );
+        m.apply(ServerEvent::ProjectRemoved {
+            workspace_id: WorkspaceId(1),
+            project_id: ProjectId(10),
         });
-        let mut reply = message(2, 10, &luis, "reply");
-        reply.thread_root_id = Some(MessageId(1));
-        m.apply(ServerEvent::MessageCreated { message: reply }, 0.0);
-        assert_eq!(m.thread.as_ref().unwrap().replies.len(), 1);
-        assert_eq!(
-            m.conversations[&ChannelId(10)].messages.len(),
-            1,
-            "replies stay in the thread"
-        );
-
-        let mut counted = root.clone();
-        counted.reply_count = 1;
-        m.apply(ServerEvent::MessageUpdated { message: counted }, 0.0);
-        assert_eq!(m.conversations[&ChannelId(10)].messages[0].reply_count, 1);
-        assert_eq!(m.thread.as_ref().unwrap().root.reply_count, 1);
-
-        let reactions = vec![Reaction {
-            emoji: "👍".into(),
-            count: 1,
-            users: vec![UserId(1)],
-        }];
-        m.apply(
-            ServerEvent::ReactionsChanged {
-                channel_id: ChannelId(10),
-                message_id: MessageId(1),
-                reactions: reactions.clone(),
-            },
-            0.0,
-        );
-        assert_eq!(m.thread.as_ref().unwrap().root.reactions, reactions);
-
-        m.apply(
-            ServerEvent::MessageDeleted {
-                channel_id: ChannelId(10),
-                message_id: MessageId(2),
-                thread_root_id: Some(MessageId(1)),
-            },
-            0.0,
-        );
-        assert!(m.thread.as_ref().unwrap().replies[0].deleted);
-        assert!(m.thread.as_ref().unwrap().replies[0].body.is_empty());
+        assert!(m.board(ProjectId(10)).is_none());
+        assert!(m.project(ProjectId(10)).is_none());
     }
 
     #[test]
-    fn typing_expires_and_presence_updates_members() {
-        let mut m = model();
-        let luis = user(2, "luis");
-        m.set_members(
-            WorkspaceId(1),
-            vec![Member {
-                user: luis.clone(),
-                role: Role::Member,
-                joined_at: 0,
-                online: false,
-            }],
-        );
-        m.apply(
-            ServerEvent::Typing {
-                channel_id: ChannelId(10),
-                thread_root_id: None,
-                user: luis.clone(),
-            },
-            100.0,
-        );
-        assert_eq!(m.typists(ChannelId(10), None, 101.0).len(), 1);
-        assert!(m
-            .typists(ChannelId(10), None, 100.0 + TYPING_SECONDS + 0.1)
-            .is_empty());
-        m.apply(
-            ServerEvent::Presence {
-                user_id: UserId(2),
-                online: true,
-            },
-            0.0,
-        );
-        assert!(m.online.contains(&UserId(2)));
-        assert!(m.members[&WorkspaceId(1)][0].online);
-    }
-
-    #[test]
-    fn removed_channels_close_and_unknown_ones_are_fetched() {
-        let mut m = model();
-        m.open_channel(ChannelId(11));
-        m.apply(
-            ServerEvent::ChannelRemoved {
-                workspace_id: WorkspaceId(1),
-                channel_id: ChannelId(11),
-            },
-            0.0,
-        );
-        assert_eq!(m.channel, None);
-        assert!(m.channel_info(ChannelId(11)).is_none());
-        let effects = m.apply(
-            ServerEvent::MessageCreated {
-                message: message(9, 99, &user(2, "luis"), "hi"),
-            },
-            0.0,
-        );
-        assert_eq!(effects, [Effect::RefreshChannels(WorkspaceId(1))]);
-    }
-
-    #[test]
-    fn a_catch_up_with_too_much_missed_reloads() {
-        let mut m = model();
-        let luis = user(2, "luis");
-        m.open_channel(ChannelId(10));
-        m.apply_history(
-            ChannelId(10),
-            None,
-            None,
-            MessagePage {
-                messages: vec![message(1, 10, &luis, "a")],
-                has_more: false,
-            },
-        );
-        m.apply_history(
-            ChannelId(10),
-            None,
-            Some(MessageId(1)),
-            MessagePage {
-                messages: vec![message(2, 10, &luis, "b")],
-                has_more: true,
-            },
-        );
-        assert!(!m.conversations[&ChannelId(10)].loaded);
+    fn opened_text_is_filed_and_keys_remembered() {
+        let mut m = Model::new(user(1, "Ana"));
+        m.absorb(Opened {
+            tasks: vec![(
+                TaskId(1),
+                TaskContent {
+                    title: "Escribir".into(),
+                    ..Default::default()
+                },
+            )],
+            keys: vec![(ProjectId(4), false)],
+            ..Default::default()
+        });
+        assert_eq!(m.title(TaskId(1)), Some("Escribir"));
+        assert!(m.waiting_for_keys(ProjectId(4)));
+        assert!(!m.waiting_for_keys(ProjectId(5)));
     }
 }

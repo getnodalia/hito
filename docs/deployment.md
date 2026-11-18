@@ -17,7 +17,7 @@ apart from the desktop app, with no desktop libraries:
 All three do the same: the program, the `hito` system user, the data folder `/var/lib/hito`,
 the configuration `/etc/hito/hito.toml` (kept on upgrades) and the systemd service
 `hito-server`, enabled and started on loopback. Check it with
-`curl http://127.0.0.1:7878/healthz`, which answers `ok`. The tarball's `README.md` walks through
+`curl http://127.0.0.1:7879/healthz`, which answers `ok`. The tarball's `README.md` walks through
 it, and `sudo ./install.sh --uninstall` removes the program and the service and keeps the data.
 
 `releases/latest/download/hito-server-linux-x86_64.tar.gz` always points at the newest one.
@@ -39,9 +39,9 @@ tar xzf hito-server-linux-x86_64.tar.gz && cd hito-server-*-linux-x86_64/ && ./i
 ```
 
 Then make it reachable with TLS as below. With the reverse proxy in another container or machine
-(Nginx Proxy Manager, Traefik...), set `bind = "0.0.0.0:7878"` and `trust_proxy = true` in
+(Nginx Proxy Manager, Traefik...), set `bind = "0.0.0.0:7879"` and `trust_proxy = true` in
 `/etc/hito/hito.toml`, `systemctl restart hito-server`, point the proxy at
-`http://<container IP>:7878` with WebSockets on, and let only the proxy reach that port.
+`http://<container IP>:7879` with WebSockets on, and let only the proxy reach that port.
 Proxmox's own container backups cover the database.
 
 ## Configure
@@ -50,7 +50,7 @@ Proxmox's own container backups cover the database.
 
 ```toml
 name = "Our team"
-bind = "127.0.0.1:7878"
+bind = "127.0.0.1:7879"
 database = "sqlite:///var/lib/hito/hito.db"
 registration = "invite_only"   # subsequent accounts require invitations
 trust_proxy = true             # the proxy below terminates TLS
@@ -77,7 +77,7 @@ Caddy gets and renews a certificate by itself. `/etc/caddy/Caddyfile`:
 
 ```
 chat.example.org {
-    reverse_proxy 127.0.0.1:7878
+    reverse_proxy 127.0.0.1:7879
 }
 ```
 

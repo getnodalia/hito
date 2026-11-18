@@ -41,7 +41,7 @@ request runs on its Tokio runtime and comes back as a `net::Reply`.
 cargo fmt --all -- --check && cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test --workspace --locked   # the CI gate
 cargo test -p hito-server --test mvp        # end-to-end tests against a real server
 cargo test -p hito-server --test e2e        # what the server stores, who can read what
-cargo run -p hito-server                    # http://127.0.0.1:7878, ./hito.db
+cargo run -p hito-server                    # http://127.0.0.1:7879, ./hito.db
 HITO_DESKTOP_DIR=/tmp/a cargo run -p hito-desktop   # one client per folder
 ```
 

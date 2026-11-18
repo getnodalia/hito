@@ -128,11 +128,11 @@ jobs:
           Write-Output $out
           if (-not ($out -match [regex]::Escape("hito-server $env:VERSION"))) { throw "hito-server.exe --version does not say $env:VERSION" }
           New-Item -ItemType Directory -Force srv | Out-Null
-          $env:HITO_BIND = '127.0.0.1:7878'
+          $env:HITO_BIND = '127.0.0.1:7879'
           $server = Start-Process (Join-Path $dir 'hito-server.exe') -WorkingDirectory srv -RedirectStandardError srv\server.log -PassThru -NoNewWindow
           for ($i = 0; $i -lt 30; $i++) {
             try {
-              $r = Invoke-WebRequest -UseBasicParsing http://127.0.0.1:7878/healthz -TimeoutSec 2
+              $r = Invoke-WebRequest -UseBasicParsing http://127.0.0.1:7879/healthz -TimeoutSec 2
               if ($r.Content -eq 'ok') { Write-Output 'server answered /healthz'; Stop-Process $server; exit 0 }
             } catch { }
             Start-Sleep -Seconds 1

@@ -32,6 +32,8 @@ tracing-subscriber.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 notify-rust = "4.19"
+# The global menu in the desktop's top bar (src/linux_menu.rs): dbusmenu over the session bus.
+zbus = "=5.19.0"
 
 [lints]
 workspace = true

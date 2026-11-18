@@ -53,7 +53,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Settings {
-            server: "localhost:7878".into(),
+            server: "localhost:7879".into(),
             username: String::new(),
             theme: Theme::System,
             high_contrast: false,
@@ -151,8 +151,7 @@ mod tests {
     use super::*;
 
     fn temp_dir(name: &str) -> PathBuf {
-        let dir =
-            std::env::temp_dir().join(format!("hito-settings-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("hito-settings-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         dir
     }
@@ -183,7 +182,7 @@ mod tests {
     fn the_session_file_is_private_and_can_be_forgotten() {
         let dir = temp_dir("session");
         let saved = SavedSession {
-            server: "http://localhost:7878/".into(),
+            server: "http://localhost:7879/".into(),
             token: "secret".into(),
         };
         save_session(Some(&dir), &saved).unwrap();

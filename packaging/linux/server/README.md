@@ -10,7 +10,7 @@ system, a small VPS.
 tar xzf hito-server-*-linux-*.tar.gz
 cd hito-server-*-linux-*/
 sudo ./install.sh
-curl http://127.0.0.1:7878/healthz    # answers ok
+curl http://127.0.0.1:7879/healthz    # answers ok
 ```
 
 `install.sh` puts the program in `/usr/local/bin/hito-server`, creates the `hito` system user
@@ -24,23 +24,23 @@ On Debian and Ubuntu the `hito-server` `.deb` does the same through the package 
 
 ## Make it reachable
 
-The server starts on `127.0.0.1:7878`. Put a reverse proxy with TLS in front, then edit
+The server starts on `127.0.0.1:7879`. Put a reverse proxy with TLS in front, then edit
 `/etc/hito/hito.toml` and `sudo systemctl restart hito-server`.
 
 **Caddy on the same machine** (it gets the certificate by itself). `/etc/caddy/Caddyfile`:
 
 ```
 chat.example.org {
-    reverse_proxy 127.0.0.1:7878
+    reverse_proxy 127.0.0.1:7879
 }
 ```
 
 and `trust_proxy = true` in `hito.toml`.
 
 **A proxy on another machine** (Nginx Proxy Manager, Traefik, a proxy in another container):
-in `hito.toml` set `bind = "0.0.0.0:7878"` and `trust_proxy = true`, point the proxy at
-`http://<this machine's IP>:7878`, and turn on WebSockets for it (live messages use
-`/api/v1/ws`). Then only the proxy should reach port 7878.
+in `hito.toml` set `bind = "0.0.0.0:7879"` and `trust_proxy = true`, point the proxy at
+`http://<this machine's IP>:7879`, and turn on WebSockets for it (live messages use
+`/api/v1/ws`). Then only the proxy should reach port 7879.
 
 On a new installation, run `sudo -u hito hito-server --config /etc/hito/hito.toml init-token`.
 Enter the token in the invitation code field to create the first account within 15 minutes.

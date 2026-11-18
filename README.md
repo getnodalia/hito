@@ -119,7 +119,7 @@ tar xzf hito-server-linux-x86_64.tar.gz && cd hito-server-*-linux-x86_64/
 sudo ./install.sh
 ```
 
-It installs the server as the `hito-server` service, listening on `127.0.0.1:7878`. Put a
+It installs the server as the `hito-server` service, listening on `127.0.0.1:7879`. Put a
 reverse proxy with TLS in front of it and use its address in the app.
 [docs/deployment.md](docs/deployment.md) covers the proxy, Proxmox, backups and upgrades.
 
@@ -129,7 +129,7 @@ You need Rust 1.91 or newer. On Linux the desktop app also needs the usual windo
 (Debian/Ubuntu: `sudo apt install libxkbcommon-dev libwayland-dev libgl1-mesa-dev libx11-dev libfontconfig1-dev`).
 
 ```sh
-# The server, on http://127.0.0.1:7878 with ./hito.db
+# The server, on http://127.0.0.1:7879 with ./hito.db
 cargo run --release -p hito-server
 
 # The desktop app (in another terminal)
@@ -139,7 +139,7 @@ cargo run --release -p hito-desktop
 On a fresh server, run `cargo run --release -p hito-server -- init-token` using the same
 configuration and database as the running server. Enter the one-use token in the invitation
 code field when creating the first account. It expires after 15 minutes. On the sign-in screen,
-the server is `localhost:7878`. The account owns the workspaces it creates. Copy
+the server is `localhost:7879`. The account owns the workspaces it creates. Copy
 [`hito.example.toml`](hito.example.toml) to set the address, the database, who may register and
 the limits, and start the server with `hito-server --config hito.toml`.
 

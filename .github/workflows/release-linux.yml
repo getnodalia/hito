@@ -147,7 +147,7 @@ jobs:
           pid=$!
           for _ in $(seq 1 30); do
             # bash's /dev/tcp: the images have no curl. A refused connection only ends the subshell.
-            reply="$( { exec 3<>/dev/tcp/127.0.0.1/7878 \
+            reply="$( { exec 3<>/dev/tcp/127.0.0.1/7879 \
               && printf 'GET /healthz HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 \
               && cat <&3; } 2>/dev/null || true)"
             if [[ "$(tail -n 1 <<<"$reply")" == ok* ]]; then
