@@ -2194,7 +2194,7 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hito-client"
-version = "0.1.0-dev"
+version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "futures-util",
@@ -2214,7 +2214,7 @@ dependencies = [
 
 [[package]]
 name = "hito-core"
-version = "0.1.0-dev"
+version = "0.1.0"
 dependencies = [
  "serde",
  "thiserror 2.0.21",
@@ -2222,7 +2222,7 @@ dependencies = [
 
 [[package]]
 name = "hito-desktop"
-version = "0.1.0-dev"
+version = "0.1.0"
 dependencies = [
  "chrono",
  "directories",
@@ -2245,7 +2245,7 @@ dependencies = [
 
 [[package]]
 name = "hito-e2e"
-version = "0.1.0-dev"
+version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "chacha20poly1305",
@@ -2262,7 +2262,7 @@ dependencies = [
 
 [[package]]
 name = "hito-protocol"
-version = "0.1.0-dev"
+version = "0.1.0"
 dependencies = [
  "hito-core",
  "serde",
@@ -2271,7 +2271,7 @@ dependencies = [
 
 [[package]]
 name = "hito-server"
-version = "0.1.0-dev"
+version = "0.1.0"
 dependencies = [
  "argon2",
  "axum",
@@ -2300,7 +2300,7 @@ dependencies = [
 
 [[package]]
 name = "hito-storage"
-version = "0.1.0-dev"
+version = "0.1.0"
 dependencies = [
  "hito-core",
  "hito-protocol",

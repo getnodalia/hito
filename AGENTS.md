@@ -10,25 +10,26 @@ Engineering rules for every Nodalia repository: [getnodalia/foundation](https://
 
 ## What this is
 
-Hito is Nodalia's self-hosted, open-source team chat: workspaces, channels, direct messages,
-threads and reactions on a server you run yourself. The server is one Rust binary with a SQLite
+Hito is Nodalia's self-hosted, open-source work tracker for companies: workspaces, projects,
+milestones, tasks, checklists, comments and progress on a server you run yourself, end-to-end
+encrypted. It belongs to the Office suite and connects to Ágora through API tokens and webhooks. The server is one Rust binary with a SQLite
 file. The desktop client is native egui with `nodalia-theme`, for Linux, macOS and Windows. It is
 not built on Electron, Chromium or a web view. The product name is **Hito** in prose and in the
 interface. Machine names are `hito`. The app ID is `dev.danielmiguelt.Hito`, the accent is
-`#0F7C80`, and the licence is `MIT OR Apache-2.0`. Read `README.md` for the user-facing picture,
+`#3D9A2B`, and the licence is `MIT OR Apache-2.0`. Read `README.md` for the user-facing picture,
 `docs/` for the details and `ROADMAP.md` for what does not exist yet.
 
 ## Architecture
 
 | Path | Responsibility |
 |---|---|
-| `crates/hito-core` | Ids, roles and permissions, limits, validation, the message text format. No I/O |
+| `crates/hito-core` | Ids, roles and permissions, statuses, priorities, progress, limits, validation. No I/O |
 | `crates/hito-protocol` | The wire contract: HTTP bodies under `/api/v1`, WebSocket frames and events |
 | `crates/hito-storage` | SQLite through SQLx, migrations in `migrations/`. All SQL lives here |
 | `crates/hito-e2e` | End-to-end encryption: a device, its MLS groups and the text it decrypted. No I/O |
 | `crates/hito-client` | HTTP calls, the reconnecting real-time connection, and `Secure` (encrypt, sync, decrypt) |
 | `apps/hito-server` | Axum routes, authentication, the event hub, limits, configuration |
-| `apps/hito-desktop` | The egui app: `model.rs` (state and reducer), `net.rs` (requests off the UI thread), `view.rs`, `dialogs.rs`, `signin.rs`, `widgets.rs`, `i18n.rs` |
+| `apps/hito-desktop` | The egui app: `model.rs` (state and reducer), `net.rs` (requests off the UI thread), `view.rs`, `pages.rs`, `detail.rs`, `dialogs.rs`, `backstage.rs`, `signin.rs`, `widgets.rs`, `i18n.rs`; `examples/demo.rs` seeds a demo company |
 
 Dependencies point down: core ← protocol ← storage/client ← apps. The protocol changes only
 additively within `/api/v1`. A breaking change gets `/api/v2`. A new database column is a new
@@ -40,7 +41,7 @@ request runs on its Tokio runtime and comes back as a `net::Reply`.
 ```bash
 cargo fmt --all -- --check && cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test --workspace --locked   # the CI gate
 cargo test -p hito-server --test mvp        # end-to-end tests against a real server
-cargo test -p hito-server --test e2e        # what the server stores, who can read what
+cargo test -p hito-server --test accounts   # sign-up, sessions, the setup token
 cargo run -p hito-server                    # http://127.0.0.1:7879, ./hito.db
 HITO_DESKTOP_DIR=/tmp/a cargo run -p hito-desktop   # one client per folder
 ```

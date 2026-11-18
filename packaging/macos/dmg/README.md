@@ -6,7 +6,7 @@ generated at build time.
 
 | File | What |
 |---|---|
-| `background.svg` | Source of the background, drawn by `tools/dmg-background/draw_background.py` in [nodalia-design](https://github.com/getnodalia/nodalia-design): two Nodalia islands on the window colour, the left one in Hito's teal (`#0F7C80`) with a channel list, a conversation with a reaction and a thread, and the lock over text the server cannot read; the right one white under the icons. Its text (Sora) is outlined, so rendering it needs no fonts. |
+| `background.svg` | Source of the background, drawn by `tools/dmg-background/draw_background.py` in [nodalia-design](https://github.com/getnodalia/nodalia-design): two Nodalia islands on the window colour, the left one in Hito's green (`#3D9A2B`) with a Gantt chart whose bars fill as their tasks get done, the milestone they lead to and the overall progress; the right one white under the icons. Its text (Sora) is outlined, so rendering it needs no fonts. |
 | `background.tiff` | The background at 1x (660 × 400 px, 72 dpi) and 2x (1320 × 800 px, 144 dpi) in one HiDPI TIFF (Deflate, sRGB). Goes to `.background/background.tiff`. |
 | `dmg-layout.DS_Store` | Finder's view settings for the volume: window size, icon size 128, Hito.app at (326, 205), `Applications` at (574, 205), and the background. Goes to `.DS_Store`. |
 | `generate.py` | Writes `background.tiff` and `dmg-layout.DS_Store` from the SVG and the layout above. |

@@ -76,7 +76,7 @@ database before upgrading, and test the upgrade on a copy first.
 Caddy gets and renews a certificate by itself. `/etc/caddy/Caddyfile`:
 
 ```
-chat.example.org {
+hito.example.org {
     reverse_proxy 127.0.0.1:7879
 }
 ```
@@ -95,7 +95,7 @@ sudo systemctl status hito-server
 journalctl -u hito-server -f
 ```
 
-In the desktop app, the server is `https://chat.example.org`.
+In the desktop app, the server is `https://hito.example.org`.
 
 ## Backups
 
@@ -106,8 +106,8 @@ safe while the server runs:
 sqlite3 /var/lib/hito/hito.db ".backup /var/backups/hito-$(date +%F).db"
 ```
 
-Backups hold accounts, metadata (who talks in which conversation, and when) and the messages'
-ciphertext: store them as carefully as the server.
+Backups hold accounts, metadata (projects, statuses, dates, who is assigned, the activity log) and
+the ciphertext of what the team wrote: store them as carefully as the server.
 
 The server can also create a consistent snapshot without a separate SQLite program. Use a
 private directory writable by the service account; the destination must not already exist:

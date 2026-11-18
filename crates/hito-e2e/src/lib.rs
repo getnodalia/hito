@@ -17,8 +17,8 @@
 //! `chacha20poly1305` crate, with standard parameters. This crate does no I/O.
 //!
 //! What the server does decide is who is in a project, so a dishonest server could add a device
-//! of its own. Every client shows the devices in a project and their fingerprints, which is how
-//! people catch that.
+//! of its own. Device lists with each [`Device::fingerprint`] in the clients are how people will
+//! catch that; the desktop app does not show them yet (docs/security.md).
 
 use std::collections::{BTreeMap, BTreeSet};
 

@@ -5,13 +5,13 @@
   <br><br>
   <img src="assets/icons/hicolor/512x512/apps/dev.danielmiguelt.Hito.png" width="192" alt="Hito">
   <h1>Hito</h1>
-  <p><strong>The self-hosted, end-to-end encrypted team chat of the Nodalia suite.</strong></p>
+  <p><strong>Tasks, milestones and progress for your company, on a server you run yourself.</strong></p>
 
   <p>
-    <a href="https://github.com/getnodalia/hito/releases/latest"><img src="https://img.shields.io/github/v/release/getnodalia/hito?label=version&color=0F7C80&include_prereleases" alt="Latest version"></a>
+    <a href="https://github.com/getnodalia/hito/releases/latest"><img src="https://img.shields.io/github/v/release/getnodalia/hito?label=version&color=3D9A2B&include_prereleases" alt="Latest version"></a>
     <img src="https://img.shields.io/badge/status-early-orange" alt="Early">
     <img src="https://img.shields.io/badge/Rust-native-dea584?logo=rust&logoColor=black" alt="Native Rust">
-    <img src="https://img.shields.io/badge/encryption-MLS%20(RFC%209420)-0F7C80" alt="End-to-end encrypted with MLS">
+    <img src="https://img.shields.io/badge/encryption-MLS%20(RFC%209420)-3D9A2B" alt="End-to-end encrypted with MLS">
     <img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-2ea44f" alt="MIT OR Apache-2.0">
   </p>
 
@@ -27,71 +27,91 @@
 </div>
 
 <p align="center">
-  <img src="docs/screenshots/two-clients.png" width="100%" alt="Two Hito clients side by side in the dark theme: a message, a reaction and a thread arrive in real time">
-  <br><sub>Two people in <code>#general</code>: a message, a reaction and a thread arrive in the other window at once.</sub>
+  <img src="docs/screenshots/board.png" width="100%" alt="Hito's board in the dark theme: four columns of task cards with labels, priorities, due dates and the people assigned">
+  <br><sub>A project's board: what is to do, in progress, in review and done, and who has it.</sub>
 </p>
 
 ---
 
 ## Overview
 
-**Hito** is the team chat of [Nodalia](https://getnodalia.com): workspaces, public and private
-channels, direct messages, threads, reactions, mentions, unread markers and search, on a server
-you run yourself. The server is one Rust binary with a SQLite file and needs no outside service.
-The desktop app is native (egui, no Electron, no Chromium, no web view) for Linux, macOS and
-Windows, and wears Nodalia Design: rounded islands on the window colour, a hamburger menu, and
-the suite's own window controls on Linux (macOS and Windows keep their native ones).
+**Hito** is the work-tracking app of [Nodalia](https://getnodalia.com): projects with milestones,
+tasks with assignees, priorities, due dates, labels, checklists and comments, a board, a list, an
+activity log and an overview of how far every project has come. It runs on a server you run
+yourself: one Rust binary with a SQLite file, no outside service. The desktop app is native
+(egui, no Electron, no Chromium, no web view) for Linux, macOS and Windows, and belongs to the
+Office suite of Nodalia Design.
 
-Every channel and direct message is **end-to-end encrypted** with MLS (RFC 9420): the server
-stores only ciphertext.
+What your team writes is **end-to-end encrypted** with MLS (RFC 9420): task titles, descriptions,
+checklists, labels, comments and milestone names reach the server only as ciphertext.
+
+Hito works with [Ágora](https://github.com/getnodalia/agora), Nodalia's team chat: a webhook
+posts a project's changes to an Ágora channel, and an API token lets other apps read and update
+tasks as you.
 
 > [!IMPORTANT]
 > **Hito is at an early stage (0.1).** Everything under [Features](#features) is implemented and
 > tested against a real server, but the protocol may still change before 1.0. The server still
-> sees who talks to whom and when; [docs/security.md](docs/security.md) says what the encryption
-> protects and what it does not. Use TLS for any server outside your own computer.
+> sees project names, statuses, dates, who is assigned and the activity log;
+> [docs/security.md](docs/security.md) says exactly what the encryption protects and what it does
+> not. Use TLS for any server outside your own computer.
 
 ## Screenshots
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/light.png" alt="Hito in its light theme, with a channel, its details and its people"></td>
-    <td width="50%"><img src="docs/screenshots/encrypted.png" alt="Two clients in an end-to-end encrypted channel; the details panel lists the devices that can read it with their fingerprints"></td>
+    <td width="50%"><img src="docs/screenshots/overview.png" alt="The overview: open and overdue tasks, active projects, progress per project and what is due soon"></td>
+    <td width="50%"><img src="docs/screenshots/task.png" alt="A task open beside the board: its checklist half done and two comments from teammates"></td>
   </tr>
   <tr>
-    <td><sub><b>Light theme</b>: the same islands in light; the theme is chosen in Preferences.</sub></td>
-    <td><sub><b>End-to-end encryption</b>: the details panel lists the devices that can read a conversation, with fingerprints to compare in person.</sub></td>
+    <td><sub><b>Overview</b>: your open and overdue tasks, every project's progress and what is due soon.</sub></td>
+    <td><sub><b>A task</b>: every field in one panel, its checklist and the team's comments.</sub></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="docs/screenshots/new-device.png" alt="A laptop signed in later: what was said before it joined stays encrypted, what follows it reads"><br><sub><b>A new device</b>: what was said before it joined stays encrypted, what follows it reads.</sub></td>
+    <td><img src="docs/screenshots/milestones.png" alt="A project's milestones with their dates and how many of their tasks are done"></td>
+    <td><img src="docs/screenshots/light.png" alt="Hito in its light theme with a task open"></td>
+  </tr>
+  <tr>
+    <td><sub><b>Milestones</b>: each with its date and its progress; a milestone is reached when its last task is done.</sub></td>
+    <td><sub><b>Light theme</b>, chosen in Preferences, like the language.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/home.png" alt="The Home page of the File view: project templates and recent projects"></td>
+    <td><img src="docs/screenshots/board-es.png" alt="The board in Spanish"></td>
+  </tr>
+  <tr>
+    <td><sub><b>Home</b>: start a project from a template or open a recent one.</sub></td>
+    <td><sub><b>In Spanish</b>: every screen is translated.</sub></td>
   </tr>
 </table>
 
 ## Features
 
 - **Accounts**: registration (open, by invitation or closed), sign-in, sign-out, sessions that
-  expire, "keep me signed in" on the desktop.
-- **Workspaces**: create, invite people with single- or multi-use codes that expire, join with a
-  code, roles (owner, admin, member, guest). Workspaces are isolated from each other.
-- **Channels**: public and private, topics, join and leave, archived channels are read-only.
-- **Direct messages** between two people of a workspace.
-- **Messages**: sent once even when the client retries (idempotent with a client nonce), edited,
-  deleted, with reactions, `@mentions`, threads, and a small Markdown subset (bold, italic,
-  strike, code, code blocks, quotes, links). Nothing is ever rendered as HTML.
-- **End-to-end encryption** of every channel and direct message with MLS (RFC 9420, through
-  OpenMLS): the server keeps only ciphertext. Each device has its own keys and reads from when it
-  was added; the details panel lists the devices that can read a conversation with their
-  fingerprints.
-- **Real time** over an authenticated WebSocket: new messages, edits, reactions, typing, presence,
-  read markers across your devices; the client reconnects with backoff and catches up.
-- **Unread counts and mentions** per channel and workspace, with a "New messages" line.
-- **Search** in the messages you can read, on your own device.
-- **Desktop app**: three panes (workspaces and channels, the conversation, a details/thread/search
-  panel), light, dark and high-contrast themes, reduced motion, keyboard shortcuts, Spanish and
-  English, NDL window controls on Linux and native ones on macOS and Windows.
+  expire, "stay signed in" on the desktop.
+- **Workspaces** for a company or a team: invitations with codes that expire, roles (owner,
+  admin, member, guest). Guests see only the projects they are added to. Workspaces are isolated
+  from each other.
+- **Projects** with a description, archived projects are read-only, and templates to start from
+  (product launch, client project, two-week sprint, event).
+- **Milestones** with a date and their progress; reaching one is recorded in the activity log.
+- **Tasks** with a status (to do, in progress, in review, done), a priority, an assignee, a
+  milestone, a due date, labels, a description and a checklist. Drag a card between columns or
+  tick it off in the list.
+- **Views**: board, list grouped by status, milestones, activity, **My tasks** across every
+  project, and an **Overview** with open and overdue tasks and each project's progress.
+- **Comments** on each task, encrypted like the rest.
+- **Real time** over an authenticated WebSocket: what a teammate changes shows at once.
+- **Integrations**: personal API tokens (`hito_pat_…`) for scripts and other apps, and webhooks
+  that POST every change, signed with HMAC-SHA256, to an address such as an Ágora channel. A
+  webhook carries only what the server already sees, never task text.
+- **Desktop app**: Nodalia Design (Office suite) with a File view for Home, Preferences, shortcuts
+  and About; light, dark and high-contrast themes, reduced motion, keyboard shortcuts, Spanish and
+  English, the global menu over D-Bus on Linux, NDL window controls on Linux and native ones on
+  macOS and Windows.
 
-Not yet: file uploads, voice and video, notifications from the operating system, a web client,
-mobile apps, PostgreSQL, federation, verified device identities. See [ROADMAP.md](ROADMAP.md).
+Not yet: file attachments, recurring tasks, time tracking, a Gantt timeline, notifications on
+macOS and Windows, a web client, mobile apps. See [ROADMAP.md](ROADMAP.md).
 
 ## Download
 
@@ -143,36 +163,32 @@ the server is `localhost:7879`. The account owns the workspaces it creates. Copy
 [`hito.example.toml`](hito.example.toml) to set the address, the database, who may register and
 the limits, and start the server with `hito-server --config hito.toml`.
 
-### Two people on one computer
+### A demo company
 
-Each desktop client keeps its settings and session in its own folder when `HITO_DESKTOP_DIR`
-is set, so two can run side by side:
+`examples/demo.rs` fills a fresh server with three people (Ana, Luis and Marta), a workspace and
+three projects with milestones, tasks, checklists and comments, all encrypted like real ones. The
+screenshots above come from it.
 
 ```sh
-cargo run --release -p hito-server                                  # terminal 1
-HITO_DESKTOP_DIR=/tmp/hito-ana  cargo run --release -p hito-desktop  # terminal 2
-HITO_DESKTOP_DIR=/tmp/hito-luis cargo run --release -p hito-desktop  # terminal 3
+cargo run -p hito-server &                    # a fresh database
+cargo run -p hito-server -- init-token         # prints the setup token
+HITO_INIT_TOKEN=<token> HITO_DESKTOP_DIR=/tmp/hito-demo cargo run -p hito-desktop --example demo
+HITO_DESKTOP_DIR=/tmp/hito-demo cargo run -p hito-desktop   # opens signed in as Ana
 ```
 
-1. In the first window, choose **Create an account** (for example `ana`, with a password of your
-   own, at least 10 characters), then **Create a workspace** from the empty screen.
-2. Open **Invite people** in the channel header and copy the code.
-3. In the second window, create a second account and paste the code in **Invitation code**; or
-   create the account first and use **Join a workspace** from the workspace menu.
-4. Write in `#general`: the other window shows it at once. Reply in a thread, react, open a direct
-   message from **People** in the details panel, close a window and open it again: the history is
-   still there. **Log out** is in the main menu (☰).
-
-No password or account is stored in this repository; you choose them when you register.
+Each desktop client keeps its settings and session in the folder `HITO_DESKTOP_DIR` names, so
+several can run side by side on one computer. The demo accounts' password is `demo-password-1`;
+use it only on a demo server.
 
 ## Repository
 
 | Path | What |
 |---|---|
-| `crates/hito-core` | Ids, roles and permissions, limits, validation, the message text format |
+| `crates/hito-core` | Ids, roles and permissions, statuses, priorities, progress, limits, validation |
 | `crates/hito-protocol` | The HTTP and WebSocket contract (versioned under `/api/v1`) |
 | `crates/hito-storage` | SQLite storage with migrations (SQLx) |
-| `crates/hito-client` | The client library: HTTP calls and the real-time connection |
+| `crates/hito-e2e` | End-to-end encryption: a device, its MLS groups and what it decrypted |
+| `crates/hito-client` | The client library: HTTP calls, the real-time connection and `Secure` (encrypt, sync, decrypt) |
 | `apps/hito-server` | The server (Tokio, Axum) |
 | `apps/hito-desktop` | The desktop app (egui, nodalia-theme) |
 | `docs/` | [Architecture](docs/architecture.md), [protocol](docs/protocol.md), [security](docs/security.md), [deployment](docs/deployment.md) |
@@ -185,7 +201,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 ## Security
 
 Passwords are hashed with Argon2id, sessions are random tokens stored only as hashes, every
-request and the WebSocket are authenticated, workspaces and private channels are checked on every
+request and the WebSocket are authenticated, workspaces, projects and guests are checked on every
 read and write, inputs are validated and size- and rate-limited, and queries are parameterised.
 The server refuses to listen on a public address without TLS in front of it unless you say so.
 [docs/security.md](docs/security.md) has the whole model and its limits, and
@@ -200,9 +216,9 @@ and what is still moving to Nodalia Design is in [`NODALIA_MIGRATION.md`](NODALI
 
 ## App icon
 
-Socrates, who did his philosophy in conversation with whoever he met in the hito of Athens. The
-portrait comes from a photograph of the marble bust in the Louvre, cut out in black and white on
-Hito's teal like every Nodalia app icon. Sources, sizes and licence are in
+Henry L. Gantt, the engineer whose bar charts still show how far a project has come. The portrait
+comes from a photograph of the 1910s in the public domain, cut out in black and white on Hito's
+green like every Nodalia app icon. Sources, sizes and licence are in
 [ATTRIBUTION.md](ATTRIBUTION.md).
 
 ## The Nodalia suite
