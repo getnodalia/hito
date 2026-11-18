@@ -216,8 +216,9 @@ and what is still moving to Nodalia Design is in [`NODALIA_MIGRATION.md`](NODALI
 
 ## App icon
 
-Henry L. Gantt, the engineer whose bar charts still show how far a project has come. The portrait
-comes from a photograph of the 1910s in the public domain, cut out in black and white on Hito's
+Lillian Moller Gilbreth, the engineer who studied how work is done and planned so that people could
+do it better. The portrait comes from a Smithsonian Institution photograph with no known
+restrictions, cut out in black and white on Hito's
 green like every Nodalia app icon. Sources, sizes and licence are in
 [ATTRIBUTION.md](ATTRIBUTION.md).
 
