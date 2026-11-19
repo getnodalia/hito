@@ -5,6 +5,7 @@
 //! bar, the top bar leaves room for the lights on its left, and its empty part moves the window.
 
 use egui::{pos2, CursorIcon, PointerButton, Rect, ResizeDirection, Sense, Ui, ViewportCommand};
+use nodalia_theme::titlebar::{Placement, Side};
 use nodalia_theme::{space, window_controls, Mode, Palette};
 
 use crate::i18n::tr;
@@ -71,21 +72,25 @@ pub fn drag_area(ui: &Ui, rect: Rect) {
     }
 }
 
-/// Draw the NDL window controls at the right of `row` and act on them.
+/// The end of the bar the NDL window controls sit at: the side the desktop keeps its own on (the
+/// right unless the desktop's button layout puts them at the left).
+pub fn side() -> Side {
+    nodalia_theme::titlebar::system_side()
+}
+
+/// Draw the NDL window controls at the desktop's side of `row` and act on them.
 pub fn controls(ui: &Ui, row: Rect, palette: &Palette, mode: Mode) {
     let (focused, maximized) = ui.input(|i| (i.focused, i.viewport().maximized.unwrap_or(false)));
-    let right = row.right() - space::SM;
-    let rect = Rect::from_min_max(
-        pos2(right - window_controls::WIDTH, row.top()),
-        pos2(right, row.bottom()),
-    );
+    let side = side();
+    let rect = Placement::nodalia(side).controls_rect(row);
     let labels = window_controls::Labels {
         minimize: tr("Minimize"),
         maximize: tr("Maximize"),
         restore: tr("Restore"),
         close: tr("Close"),
     };
-    if let Some(action) = window_controls::show(ui, rect, palette, mode, focused, maximized, labels)
+    if let Some(action) =
+        window_controls::show_on(ui, rect, side, palette, mode, focused, maximized, labels)
     {
         ui.ctx().send_viewport_cmd(command(action));
     }
