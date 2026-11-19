@@ -153,16 +153,20 @@ fn top_bar(
     if chrome::drags_window(ndl) {
         chrome::drag_area(ui, bar);
     }
-    let right_reserved = if ndl {
+    // Controls at the left (the desktop's choice on Linux) take the bar's first stretch.
+    let controls_left = ndl && chrome::side() == nodalia_theme::titlebar::Side::Left;
+    let right_reserved = if ndl && !controls_left {
         chrome::CONTROLS_WIDTH
     } else {
         layout::GAP
     };
+    let left_reserved = if controls_left {
+        chrome::CONTROLS_WIDTH + layout::GAP
+    } else {
+        layout::GAP + chrome::leading_inset()
+    };
     let inner = Rect::from_min_max(
-        pos2(
-            bar.left() + layout::GAP + chrome::leading_inset(),
-            bar.top(),
-        ),
+        pos2(bar.left() + left_reserved, bar.top()),
         pos2(bar.right() - right_reserved, bar.bottom()),
     );
     ui.scope_builder(
