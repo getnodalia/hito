@@ -15,8 +15,9 @@ pub const NDL_CONTROLS_POSSIBLE: bool = cfg!(target_os = "linux");
 /// Whether the window's content runs under a transparent title bar (macOS).
 pub const INSET_TITLE_BAR: bool = cfg!(target_os = "macos");
 
-/// Room the macOS traffic lights take at the left of the top bar.
-pub const TRAFFIC_LIGHTS_WIDTH: f32 = 72.0;
+/// Room the macOS traffic lights take at the left of the top bar, with the gap to the first
+/// control (nodalia-design's, the same in every Nodalia app).
+pub const TRAFFIC_LIGHTS_WIDTH: f32 = nodalia_theme::titlebar::MAC_LIGHTS;
 
 /// The native frame's options for this platform: on macOS the content fills the window and the
 /// traffic lights float over the top bar, as in the other Nodalia apps.
