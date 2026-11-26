@@ -85,6 +85,93 @@ pub fn tr(english: &'static str) -> &'static str {
         .map_or(english, |(_, es)| es)
 }
 
+/// A client-side validation failure, worded for the current language.
+pub fn explain_validation(error: &hito_core::validate::ValidationError) -> String {
+    use hito_core::validate::ValidationError as V;
+    let name = match error.field() {
+        "username" => tr("The username"),
+        "display_name" => tr("The display name"),
+        "password" => tr("The password"),
+        "workspace_name" => tr("The workspace name"),
+        "project_name" => tr("The project name"),
+        "milestone_name" => tr("The milestone name"),
+        "title" => tr("The title"),
+        "label" => tr("The label"),
+        "labels" => tr("The labels"),
+        "checklist" => tr("The checklist item"),
+        "description" => tr("The description"),
+        "body" => tr("The comment"),
+        "name" => tr("The token name"),
+        "query" => tr("The search"),
+        "url" => tr("The address"),
+        "secret" => tr("The secret"),
+        _ => tr("The text"),
+    };
+    match error {
+        V::Empty { .. } => trf("{} is empty", &[name]),
+        V::TooLong { max, .. } => trf(
+            "{} is too long (at most {} characters)",
+            &[name, &max.to_string()],
+        ),
+        V::TooShort { min, .. } => trf(
+            "{} is too short (at least {} characters)",
+            &[name, &min.to_string()],
+        ),
+        V::BadCharacters { .. } => trf("{} contains characters that are not allowed", &[name]),
+    }
+}
+
+/// A failure to write a file on this computer.
+pub fn explain_io(error: &std::io::Error) -> String {
+    trf("Could not save on this computer: {}", &[&error.to_string()])
+}
+
+fn lookup(english: &str) -> Option<&'static str> {
+    SPANISH
+        .binary_search_by(|(en, _)| (*en).cmp(english))
+        .ok()
+        .and_then(|i| SPANISH.get(i))
+        .map(|(_, es)| *es)
+}
+
+/// What to tell a person about a failed request, in their language and in plain words. The
+/// server's own message is kept when the interface is English, or when it has a translation;
+/// otherwise the general sentence for its code stands in, so no English reaches a Spanish screen.
+pub fn explain(error: &hito_client::ClientError) -> String {
+    use hito_client::ClientError as E;
+    use hito_protocol::ErrorCode as C;
+    match error {
+        E::Api { error, .. } => {
+            if current() == Lang::En {
+                return error.message.clone();
+            }
+            if let Some(es) = lookup(&error.message) {
+                return es.to_owned();
+            }
+            match error.code {
+                C::Forbidden => tr("You are not allowed to do that."),
+                C::NotFound => tr("That no longer exists, or you cannot see it."),
+                C::Unauthenticated => tr("Your session ended. Sign in again."),
+                C::RateLimited => tr("Too many requests. Wait a moment and try again."),
+                C::Conflict => tr("That already exists."),
+                C::RegistrationClosed => tr("This server does not accept new accounts."),
+                C::Invalid => tr("That is not valid."),
+                _ => tr("The server failed. Try again later."),
+            }
+            .to_owned()
+        }
+        E::Network(_) => {
+            tr("Cannot reach the server. Check the address and your connection.").to_owned()
+        }
+        E::InvalidUrl(_) => tr("The server address is not valid.").to_owned(),
+        E::Decode(_) => tr(
+            "The server answered something unexpected. Is it running a compatible version of Hito?",
+        )
+        .to_owned(),
+        E::Encryption(detail) => trf("Encryption failed: {}", &[detail]),
+    }
+}
+
 /// [`tr`] with each `{}` replaced, in order, by `args`.
 pub fn trf(english: &'static str, args: &[&str]) -> String {
     let mut out = String::new();
@@ -116,6 +203,7 @@ const SPANISH: &[(&str, &str)] = &[
     ("A workspace holds your company's projects and people.", "Un espacio de trabajo reúne los proyectos y las personas de tu empresa."),
     ("API tokens", "Tokens de API"),
     ("API tokens and webhooks", "Tokens de API y webhooks"),
+    ("API tokens cannot manage API tokens", "Los tokens de API no pueden gestionar tokens de API."),
     ("About Hito", "Acerca de Hito"),
     ("Accent, typefaces, icons and window controls come from the Nodalia Design Language.", "Acento, tipografías, iconos y controles de ventana vienen del Nodalia Design Language."),
     ("Account", "Cuenta"),
@@ -150,6 +238,7 @@ const SPANISH: &[(&str, &str)] = &[
     ("Build", "Construir"),
     ("Build the first version", "Construir la primera versión"),
     ("Cancel", "Cancelar"),
+    ("Cannot reach the server. Check the address and your connection.", "No se puede llegar al servidor. Revisa la dirección y tu conexión."),
     ("Check for updates…", "Buscar actualizaciones…"),
     ("Check references", "Comprobar referencias"),
     ("Checklist", "Lista de comprobación"),
@@ -168,6 +257,7 @@ const SPANISH: &[(&str, &str)] = &[
     ("Copy", "Copiar"),
     ("Copy code", "Copiar código"),
     ("Copy it now: it is shown only once.", "Cópialo ahora: solo se muestra una vez."),
+    ("Could not save on this computer: {}", "No se pudo guardar en este equipo: {}"),
     ("Create", "Crear"),
     ("Create a project first, then add its tasks.", "Crea primero un proyecto y luego añade sus tareas."),
     ("Create a workspace", "Crear un espacio de trabajo"),
@@ -200,6 +290,7 @@ const SPANISH: &[(&str, &str)] = &[
     ("Due date", "Fecha límite"),
     ("Due soon", "Vence pronto"),
     ("Edit milestone", "Editar hito"),
+    ("Encryption failed: {}", "El cifrado falló: {}"),
     ("Event", "Evento"),
     ("Every project", "Todos los proyectos"),
     ("Everything", "Todo"),
@@ -384,20 +475,45 @@ const SPANISH: &[(&str, &str)] = &[
     ("Test it on a phone", "Probarlo en el móvil"),
     ("Test with five customers", "Probar con cinco clientes"),
     ("Thank the guests", "Agradecer a los invitados"),
+    ("That already exists.", "Eso ya existe."),
+    ("That is not valid.", "Eso no es válido."),
+    ("That no longer exists, or you cannot see it.", "Eso ya no existe, o no puedes verlo."),
     ("That project is no longer available.", "Ese proyecto ya no está disponible."),
+    ("The address", "La dirección"),
+    ("The checklist item", "El elemento de la lista"),
+    ("The comment", "El comentario"),
     ("The day", "El día"),
+    ("The description", "La descripción"),
     ("The desktop's own", "Los del escritorio"),
+    ("The display name", "El nombre visible"),
+    ("The label", "La etiqueta"),
+    ("The labels", "Las etiquetas"),
+    ("The milestone name", "El nombre del hito"),
+    ("The password", "La contraseña"),
+    ("The project name", "El nombre del proyecto"),
     ("The project's description, milestones and tasks are end-to-end encrypted.", "La descripción, los hitos y las tareas del proyecto están cifrados de extremo a extremo."),
+    ("The search", "La búsqueda"),
+    ("The secret", "El secreto"),
+    ("The server address is not valid.", "La dirección del servidor no es válida."),
+    ("The server answered something unexpected. Is it running a compatible version of Hito?", "El servidor respondió algo inesperado. ¿Ejecuta una versión compatible de Hito?"),
+    ("The server failed. Try again later.", "El servidor falló. Inténtalo más tarde."),
     ("The task, its checklist and its comments are deleted for everyone. This cannot be undone.", "La tarea, su lista y sus comentarios se eliminan para todos. No se puede deshacer."),
+    ("The text", "El texto"),
+    ("The title", "El título"),
+    ("The token name", "El nombre del token"),
+    ("The username", "El nombre de usuario"),
+    ("The workspace name", "El nombre del espacio de trabajo"),
     ("Theme", "Tema"),
     ("They join as", "Se unen como"),
     ("This address uses http: passwords and everything the server sees travel unencrypted. Use it only on your own computer or network.", "Esta dirección usa http: las contraseñas y todo lo que ve el servidor viajan sin cifrar. Úsala solo en tu ordenador o tu red."),
     ("This device does not have this project's keys yet. They arrive when a teammate with access opens Hito.", "Este dispositivo aún no tiene las claves de este proyecto. Llegan cuando un compañero con acceso abre Hito."),
+    ("This server does not accept new accounts.", "Este servidor no acepta cuentas nuevas."),
     ("This week", "Esta semana"),
     ("Title", "Título"),
     ("To do", "Por hacer"),
     ("Today", "Hoy"),
     ("Token name, e.g. Ágora", "Nombre del token, p. ej. Ágora"),
+    ("Too many requests. Wait a moment and try again.", "Demasiadas peticiones. Espera un momento e inténtalo de nuevo."),
     ("Two-week sprint", "Sprint de dos semanas"),
     ("Unsaved changes", "Cambios sin guardar"),
     ("Urgent", "Urgente"),
@@ -425,8 +541,43 @@ const SPANISH: &[(&str, &str)] = &[
     ("Write the closing summary", "Escribir el resumen de cierre"),
     ("Write the copy", "Escribir los textos"),
     ("Write the date as YYYY-MM-DD.", "Escribe la fecha como AAAA-MM-DD."),
+    ("You are not allowed to do that.", "No tienes permiso para hacer eso."),
+    ("Your session ended. Sign in again.", "Tu sesión terminó. Inicia sesión de nuevo."),
+    ("a key package belongs to another device", "Un paquete de claves pertenece a otro dispositivo."),
+    ("a key package is too large", "Un paquete de claves es demasiado grande."),
+    ("a limit was reached; delete something first", "Se alcanzó un límite. Borra algo primero."),
+    ("a new group starts at epoch 0", "Un grupo nuevo empieza en la época 0."),
+    ("an API token cannot do this; sign in with the app", "Un token de API no puede hacer esto. Inicia sesión desde la app."),
     ("design, backend", "diseño, backend"),
+    ("guests can read and comment, not edit", "Los invitados pueden leer y comentar, pero no editar."),
+    ("guests cannot create projects", "Los invitados no pueden crear proyectos."),
+    ("it already exists", "Eso ya existe."),
+    ("log in to continue", "Inicia sesión para continuar."),
+    ("must not be empty", "No puede estar vacío."),
     ("never used", "nunca usado"),
+    ("not a valid key package", "No es un paquete de claves válido."),
+    ("not an MLS GroupInfo", "No es un GroupInfo de MLS."),
+    ("not an MLS message", "No es un mensaje de MLS."),
+    ("not found", "No se encontró."),
+    ("not valid base64", "No es base64 válido."),
+    ("public_key is too long", "La clave pública es demasiado larga."),
+    ("register this session's device first", "Registra antes el dispositivo de esta sesión."),
+    ("server initialization is not authorized or already completed", "La inicialización del servidor no está autorizada o ya se completó."),
+    ("someone else changed it first; reload it and try again", "Alguien lo cambió antes. Recárgalo e inténtalo de nuevo."),
+    ("storage failure", "Fallo de almacenamiento en el servidor."),
+    ("that username is taken", "Ese nombre de usuario ya está en uso."),
+    ("the assignee cannot see this project", "La persona asignada no puede ver este proyecto."),
+    ("the milestone is not in this project", "El hito no pertenece a este proyecto."),
+    ("the project's encryption moved on; catch up and try again", "El cifrado del proyecto avanzó. Ponte al día e inténtalo de nuevo."),
+    ("the server failed; see its log", "El servidor falló. Mira su registro."),
+    ("this invitation has expired or been used up", "Esta invitación caducó o ya se usó del todo."),
+    ("this key belongs to another account", "Esta clave pertenece a otra cuenta."),
+    ("this project already has a group; join it", "Este proyecto ya tiene un grupo. Únete a él."),
+    ("too many devices", "Hay demasiados dispositivos."),
+    ("too many key packages; publish fewer", "Hay demasiados paquetes de claves. Publica menos."),
+    ("too many keys in one message", "Hay demasiadas claves en un mensaje."),
+    ("too many requests; try again shortly", "Demasiadas peticiones. Espera un momento e inténtalo de nuevo."),
+    ("unexpected kind of MLS message", "Tipo de mensaje MLS inesperado."),
     ("used {}", "usado {}"),
     ("{} % done · {}", "{} % hecho · {}"),
     ("{} added a milestone", "{} añadió un hito"),
@@ -438,9 +589,13 @@ const SPANISH: &[(&str, &str)] = &[
     ("{} changed the project", "{} cambió el proyecto"),
     ("{} commented on a task", "{} comentó una tarea"),
     ("{} completed a task", "{} completó una tarea"),
+    ("{} contains characters that are not allowed", "{} contiene caracteres que no se permiten."),
     ("{} created the project", "{} creó el proyecto"),
     ("{} deleted a milestone", "{} eliminó un hito"),
     ("{} deleted a task", "{} eliminó una tarea"),
+    ("{} is empty", "{} está vacío."),
+    ("{} is too long (at most {} characters)", "{} es demasiado largo (máximo {} caracteres)."),
+    ("{} is too short (at least {} characters)", "{} es demasiado corto (mínimo {} caracteres)."),
     ("{} moved a task", "{} movió una tarea"),
     ("{} of {} done", "{} de {} hechas"),
     ("{} of {} tasks done", "{} de {} tareas hechas"),
@@ -519,6 +674,76 @@ mod tests {
             missing.is_empty(),
             "untranslated strings:\n{}",
             missing.join("\n")
+        );
+    }
+
+    #[test]
+    fn a_failed_request_reads_in_spanish_without_english() {
+        use hito_client::ClientError as E;
+        use hito_protocol::{ApiError, ErrorCode};
+        let api = |code, message: &str| E::Api {
+            status: 400,
+            error: ApiError {
+                code,
+                message: message.into(),
+                field: None,
+            },
+        };
+        set(Lang::Es);
+        assert_eq!(
+            explain(&api(ErrorCode::Conflict, "that username is taken")),
+            "Ese nombre de usuario ya está en uso."
+        );
+        assert_eq!(
+            explain(&api(ErrorCode::Invalid, "name is too long (80)")),
+            "Eso no es válido."
+        );
+        assert_eq!(
+            explain(&E::Network("timed out".into())),
+            "No se puede llegar al servidor. Revisa la dirección y tu conexión."
+        );
+        set(Lang::En);
+        assert_eq!(
+            explain(&api(ErrorCode::Invalid, "name is too long (80)")),
+            "name is too long (80)"
+        );
+        set(Lang::Es);
+    }
+
+    #[test]
+    fn every_word_the_error_helpers_use_has_spanish() {
+        let src = include_str!("i18n.rs");
+        let from = src.find("pub fn explain_validation").unwrap_or(0);
+        let to = src.find("const SPANISH").unwrap_or(src.len());
+        let body = src.get(from..to).unwrap_or_default();
+        let mut missing = Vec::new();
+        for marker in ["tr(\"", "trf(\""] {
+            for piece in body.split(marker).skip(1) {
+                if let Some(end) = piece.find('"') {
+                    let english = &piece[..end];
+                    if lookup(english).is_none() {
+                        missing.push(english.to_owned());
+                    }
+                }
+            }
+        }
+        assert!(missing.is_empty(), "untranslated: {missing:?}");
+    }
+
+    #[test]
+    fn a_client_side_check_reads_in_spanish() {
+        use hito_core::validate::ValidationError as V;
+        set(Lang::Es);
+        assert_eq!(
+            explain_validation(&V::Empty { field: "title" }),
+            "El título está vacío."
+        );
+        assert_eq!(
+            explain_validation(&V::TooLong {
+                field: "project_name",
+                max: 80
+            }),
+            "El nombre del proyecto es demasiado largo (máximo 80 caracteres)."
         );
     }
 
