@@ -368,7 +368,7 @@ impl App {
     fn save_settings(&mut self, now: f64) {
         if let Err(e) = self.settings.save(self.dir.as_deref()) {
             tracing::warn!(error = %e, "could not save the settings");
-            self.toast(e.to_string(), now);
+            self.toast(crate::i18n::explain_io(&e), now);
         }
     }
 
@@ -423,7 +423,7 @@ impl App {
         let client = match hito_client::parse_server_url(&form.server).and_then(Client::new) {
             Ok(c) => c,
             Err(e) => {
-                form.error = Some(e.to_string());
+                form.error = Some(crate::i18n::explain(&e));
                 return;
             }
         };
@@ -479,7 +479,7 @@ impl App {
             };
             if self.settings.remember {
                 if let Err(e) = settings::save_session(self.dir.as_deref(), &saved) {
-                    self.toast(e.to_string(), now);
+                    self.toast(crate::i18n::explain_io(&e), now);
                 }
             } else {
                 settings::forget_session(self.dir.as_deref());
@@ -536,7 +536,7 @@ impl App {
             Reply::ServerInfo(address, result) => {
                 if let Screen::SignIn(form) = &mut self.screen {
                     if form.info_for == address {
-                        form.info = Some(result.map_err(|e| e.to_string()));
+                        form.info = Some(result.map_err(|e| crate::i18n::explain(&e)));
                     }
                 }
             }
@@ -552,7 +552,7 @@ impl App {
                 Err(e) => {
                     if let Screen::SignIn(form) = &mut self.screen {
                         form.busy = false;
-                        form.error = Some(e.to_string());
+                        form.error = Some(crate::i18n::explain(&e));
                         form.password.clear();
                     }
                 }
@@ -564,7 +564,7 @@ impl App {
                 }
                 Err(e) => {
                     let mut form = signin::Form::new(&self.settings);
-                    form.error = Some(e.to_string());
+                    form.error = Some(crate::i18n::explain(&e));
                     self.screen = Screen::SignIn(form);
                 }
             },
@@ -583,7 +583,7 @@ impl App {
                     if e.is_unauthenticated() {
                         self.sign_out(Some(tr("Signed out. Sign in again.")));
                     } else {
-                        self.toast(e.to_string(), now);
+                        self.toast(crate::i18n::explain(&e), now);
                     }
                 }
             }
@@ -1059,7 +1059,7 @@ impl Main {
                 };
                 let content = editor.content();
                 if let Err(e) = hito_client::secure::checked_task(&content) {
-                    self.notices.push(e.to_string());
+                    self.notices.push(crate::i18n::explain(&e));
                     return;
                 }
                 let Some(task) = self.model.task(editor.id).cloned() else {
@@ -1161,7 +1161,7 @@ impl Main {
                     return;
                 }
                 if let Err(e) = hito_core::validate::comment_body(&body) {
-                    self.notices.push(e.to_string());
+                    self.notices.push(crate::i18n::explain_validation(&e));
                     return;
                 }
                 self.comment.clear();
@@ -1184,7 +1184,7 @@ impl Main {
                     return;
                 };
                 if let Err(e) = hito_core::validate::project_name(&name) {
-                    self.notices.push(e.to_string());
+                    self.notices.push(crate::i18n::explain_validation(&e));
                     return;
                 }
                 let secure = self.secure.clone();
@@ -1202,7 +1202,7 @@ impl Main {
                 archived,
             } => {
                 if let Err(e) = hito_core::validate::project_name(&name) {
-                    self.notices.push(e.to_string());
+                    self.notices.push(crate::i18n::explain_validation(&e));
                     return;
                 }
                 let secure = self.secure.clone();
@@ -1362,7 +1362,7 @@ impl Main {
             ..Default::default()
         };
         if let Err(e) = hito_client::secure::checked_task(&content) {
-            self.notices.push(e.to_string());
+            self.notices.push(crate::i18n::explain(&e));
             return;
         }
         let secure = self.secure.clone();
