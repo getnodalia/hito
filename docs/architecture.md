@@ -59,8 +59,8 @@ ids and epochs from the MLS headers and keeps the log; it holds no key.
   milestones and comments land once, a project's progress follows its tasks, and the text each
   device opened is kept beside the sealed copy.
 - `view.rs` (shell, sidebar, toasts), `pages.rs` (overview, my tasks, board, list, milestones,
-  activity), `detail.rs` (the task panel), `dialogs.rs`, `backstage.rs` (the Office suite's File
-  view: Home, Preferences, shortcuts, About) and `signin.rs` draw with egui and `nodalia_theme`
+  activity), `detail.rs` (the task panel), `dialogs.rs` (new project and task, Preferences, shortcuts, About), `backstage.rs` (the Home
+  page) and `signin.rs` draw with egui and `nodalia_theme`
   and return `Action`s that `app.rs` carries out after the frame.
 - `linux_menu.rs` exports the menu to the desktop's global menu over D-Bus; `menu.rs` holds the
   entries both menus share.

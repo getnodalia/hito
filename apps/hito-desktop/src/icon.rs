@@ -62,7 +62,7 @@ pub fn texture(ctx: &egui::Context) -> TextureHandle {
             ],
             &rgba,
         ),
-        None => ColorImage::new([1, 1], vec![egui::Color32::from_rgb(0x0F, 0x7C, 0x80)]),
+        None => ColorImage::new([1, 1], vec![egui::Color32::from_rgb(0x3D, 0x9A, 0x2B)]),
     };
     let texture = ctx.load_texture("hito-icon", image, TextureOptions::LINEAR);
     ctx.data_mut(|d| d.insert_temp(id, texture.clone()));

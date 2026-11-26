@@ -11,10 +11,11 @@ use nodalia_theme::font_size;
 use nodalia_theme::for_egui::color;
 
 use crate::app::{Action, Main};
+use crate::chrome;
 use crate::dates;
-use crate::i18n::{tr, trf};
+use crate::i18n::{tr, trf, Lang};
 use crate::pages::{priority_name, status_name};
-use crate::settings::Settings;
+use crate::settings::{Settings, Theme, WindowControls};
 use crate::templates::Kind;
 
 /// The integrations dialog: this person's API tokens and the workspace's webhooks.
@@ -80,6 +81,9 @@ pub enum Dialog {
     ConfirmDeleteMilestone {
         id: MilestoneId,
     },
+    Preferences,
+    Shortcuts,
+    About,
 }
 
 impl Dialog {
@@ -145,6 +149,9 @@ impl Dialog {
             Dialog::Integrations(_) => tr("API tokens and webhooks"),
             Dialog::ConfirmDeleteTask { .. } => tr("Delete this task?"),
             Dialog::ConfirmDeleteMilestone { .. } => tr("Delete this milestone?"),
+            Dialog::Preferences => tr("Preferences"),
+            Dialog::Shortcuts => tr("Keyboard shortcuts"),
+            Dialog::About => tr("About Hito"),
         }
     }
 
@@ -159,7 +166,7 @@ impl Dialog {
 pub fn show(
     ctx: &egui::Context,
     main: &mut Main,
-    _settings: &mut Settings,
+    settings: &mut Settings,
     look: &Look,
     actions: &mut Vec<Action>,
 ) {
@@ -198,7 +205,7 @@ pub fn show(
                 .id_salt("dialog-body")
                 .max_height(max_height)
                 .show(ui, |ui| {
-                    body(ui, main, look, &mut dialog, actions, &mut close)
+                    body(ui, main, settings, look, &mut dialog, actions, &mut close)
                 });
         });
     if response.should_close() {
@@ -360,6 +367,7 @@ fn enter(ui: &Ui, response: &egui::Response) -> bool {
 fn body(
     ui: &mut Ui,
     main: &Main,
+    settings: &mut Settings,
     look: &Look,
     dialog: &mut Dialog,
     actions: &mut Vec<Action>,
@@ -564,6 +572,9 @@ fn body(
             actions,
             close,
         ),
+        Dialog::Preferences => preferences(ui, settings, look, actions),
+        Dialog::Shortcuts => shortcuts(ui, look),
+        Dialog::About => about(ui, look),
         Dialog::Integrations(d) => integrations(ui, main, look, d, actions),
         Dialog::ConfirmDeleteTask { id } => {
             note(
@@ -985,5 +996,169 @@ fn integrations(
                 secret: d.hook_secret.trim().to_string(),
             });
         }
+    });
+}
+
+// --- Preferences, shortcuts and About ---------------------------------------------------------
+
+fn preferences(ui: &mut Ui, settings: &mut Settings, look: &Look, actions: &mut Vec<Action>) {
+    let p = &look.palette;
+    let before = settings.clone();
+    let heading = |ui: &mut Ui, t: &str| {
+        ui.add_space(10.0);
+        ui.label(RichText::new(t).strong().color(color(p.text_primary)));
+    };
+    heading(ui, tr("Appearance"));
+    label(ui, look, tr("Theme"));
+    ui.horizontal(|ui| {
+        ui.selectable_value(&mut settings.theme, Theme::System, tr("System"));
+        ui.selectable_value(&mut settings.theme, Theme::Light, tr("Light"));
+        ui.selectable_value(&mut settings.theme, Theme::Dark, tr("Dark"));
+    });
+    ui.checkbox(&mut settings.high_contrast, tr("High contrast"));
+    ui.checkbox(&mut settings.reduced_motion, tr("Reduce motion"));
+    if chrome::NDL_CONTROLS_POSSIBLE {
+        heading(ui, tr("Window"));
+        label(ui, look, tr("Window buttons"));
+        ui.horizontal(|ui| {
+            ui.selectable_value(
+                &mut settings.window_controls,
+                WindowControls::Nodalia,
+                tr("Nodalia"),
+            );
+            ui.selectable_value(
+                &mut settings.window_controls,
+                WindowControls::System,
+                tr("The desktop's own"),
+            );
+        });
+    }
+    heading(ui, tr("Language"));
+    {
+        let choices = [None, Some(Lang::Es), Some(Lang::En)];
+        let names = [tr("System"), Lang::Es.name(), Lang::En.name()];
+        let at = choices.iter().position(|c| *c == settings.language);
+        let current = at.and_then(|i| names.get(i)).copied().unwrap_or("");
+        if let Some(picked) =
+            nodalia_theme::enterprise::picker(ui, look, "language", current, &names, at, 220.0)
+        {
+            if let Some(choice) = choices.get(picked) {
+                settings.language = *choice;
+            }
+        }
+        note(
+            ui,
+            look,
+            tr("Project templates are written in the language chosen when the project is created."),
+        );
+    }
+    heading(ui, tr("Account"));
+    ui.checkbox(
+        &mut settings.remember,
+        tr("Stay signed in on this computer"),
+    );
+    #[cfg(target_os = "linux")]
+    {
+        heading(ui, tr("Notifications"));
+        ui.checkbox(
+            &mut settings.notifications,
+            tr("When a task is assigned to me"),
+        );
+        note(
+            ui,
+            look,
+            tr("Notifications never include a task's title or its project."),
+        );
+    }
+    if *settings != before {
+        actions.push(Action::SettingsChanged);
+    }
+}
+
+fn shortcuts(ui: &mut Ui, look: &Look) {
+    let p = &look.palette;
+    let command = if cfg!(target_os = "macos") {
+        "⌘"
+    } else {
+        "Ctrl"
+    };
+    let rows = [
+        (tr("New task"), format!("{command}+N")),
+        (tr("Filter tasks"), format!("{command}+K")),
+        (tr("Board"), format!("{command}+1")),
+        (tr("List"), format!("{command}+2")),
+        (tr("Milestones"), format!("{command}+3")),
+        (tr("Activity"), format!("{command}+4")),
+        (tr("Save the open task"), format!("{command}+S")),
+        (tr("Close the task or this view"), "Esc".to_string()),
+        (tr("Refresh"), "F5".to_string()),
+        (tr("Preferences"), format!("{command}+,")),
+    ];
+    egui::Grid::new("shortcuts")
+        .num_columns(2)
+        .spacing(vec2(24.0, 8.0))
+        .show(ui, |ui| {
+            for (what, keys) in rows {
+                ui.label(RichText::new(what).color(color(p.text_primary)));
+                ui.label(
+                    RichText::new(keys)
+                        .monospace()
+                        .color(color(p.text_secondary)),
+                );
+                ui.end_row();
+            }
+        });
+}
+
+fn about(ui: &mut Ui, look: &Look) {
+    use nodalia_theme::about::{self as ndl_about, Info, Link};
+    let p = &look.palette;
+    let version = trf("Version {}", &[env!("CARGO_PKG_VERSION")]);
+    let links = [
+        Link {
+            label: tr("Website"),
+            url: "https://getnodalia.com/hito",
+        },
+        Link {
+            label: "GitHub",
+            url: "https://github.com/getnodalia/hito",
+        },
+        Link {
+            label: tr("Report an issue"),
+            url: "https://github.com/getnodalia/hito/issues",
+        },
+    ];
+    let info = Info {
+        name: "Hito",
+        version: &version,
+        tagline: tr(
+            "Tasks, milestones and progress for your company, on a server you run yourself.",
+        ),
+        suite: tr("Part of Nodalia · Enterprise"),
+        links: &links,
+        footer: "MIT OR Apache-2.0 · © Nodalia",
+    };
+    let texture = crate::icon::texture(ui.ctx());
+    let page = ndl_about::page(ui, look, &info, |ui, rect| {
+        egui::Image::new(&texture)
+            .fit_to_exact_size(rect.size())
+            .corner_radius(egui::CornerRadius::same((rect.width() * 0.22) as u8))
+            .paint_at(ui, rect);
+    });
+    if let Some(link) = page.picked.and_then(|i| links.get(i)) {
+        ui.ctx().open_url(egui::OpenUrl::new_tab(link.url));
+    }
+    ui.vertical_centered(|ui| {
+        ui.label(
+            RichText::new(tr("Task titles, descriptions, checklists, labels, comments and milestone names are end-to-end encrypted: only your team's devices can read them. The server sees the rest: project names, who is assigned, statuses, priorities, dates and the activity log."))
+                .size(font_size::SMALL)
+                .color(color(p.text_secondary)),
+        );
+        ui.add_space(6.0);
+        ui.label(
+            RichText::new(crate::icon::CREDIT)
+                .size(font_size::CAPTION)
+                .color(color(p.text_tertiary)),
+        );
     });
 }

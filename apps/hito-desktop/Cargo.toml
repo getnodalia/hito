@@ -20,7 +20,7 @@ hito-client.workspace = true
 eframe.workspace = true
 egui.workspace = true
 nodalia-theme.workspace = true
-nodalia-update = { git = "https://github.com/getnodalia/nodalia-design", rev = "114848a2ff1a7c29c9a5432fb12e955fbe0aeef2", features = ["egui"] }
+nodalia-update = { git = "https://github.com/getnodalia/nodalia-design", rev = "8bb4b7dcbf186644ab606b806569c851056cee2c", features = ["egui"] }
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true

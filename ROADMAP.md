@@ -14,7 +14,7 @@ Where Hito is and what comes next. Only what is under "Done" exists; everything 
 - Integrations: personal API tokens and signed webhooks, for Ágora and anything that accepts a signed POST of a project's
   changes in a channel once connected.
 - Desktop app for Linux, macOS and Windows: overview, my tasks, board with drag and drop, list,
-  milestones, activity, the task panel, project templates, the Office suite's File view, light,
+  milestones, activity, the task panel, project templates, the Enterprise suite's shell, a Home page, light,
   dark and high-contrast themes, Spanish and English, the global menu over D-Bus on Linux.
 - Packages for every release: AppImage, .deb, .rpm and a tarball for Linux, a universal DMG with
   its own install window and a server zip for macOS, a portable zip for Windows, and the Linux

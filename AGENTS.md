@@ -12,7 +12,7 @@ Engineering rules for every Nodalia repository: [getnodalia/foundation](https://
 
 Hito is Nodalia's self-hosted, open-source work tracker for companies: workspaces, projects,
 milestones, tasks, checklists, comments and progress on a server you run yourself, end-to-end
-encrypted. It belongs to the Office suite and connects to Ágora through API tokens and webhooks. The server is one Rust binary with a SQLite
+encrypted. It belongs to the Enterprise suite (with Ágora and the customer, resource and finance apps to come) and connects to Ágora through API tokens and webhooks. The server is one Rust binary with a SQLite
 file. The desktop client is native egui with `nodalia-theme`, for Linux, macOS and Windows. It is
 not built on Electron, Chromium or a web view. The product name is **Hito** in prose and in the
 interface. Machine names are `hito`. The app ID is `dev.danielmiguelt.Hito`, the accent is
@@ -73,9 +73,14 @@ display, run it under `Xvfb` and drive it with `xdotool`. Linux needs `libxkbcom
 
 ## NDL
 
-`nodalia-theme` comes from getnodalia/nodalia-design, pinned by `rev` with the `egui` and
-`creator` features. It supplies the palette (`Accent::Hito`), islands, buttons, fields, window
-controls and icons. Never copy NDL into this repository. A missing component goes to
+Hito belongs to the **Enterprise suite** (`docs/suites/enterprise.md` in nodalia-design), with
+Ágora and the customer, resource and finance apps to come: the window shell, top bar, sidebar,
+workspace switcher, sign-in, integrations, language picker, About line and update window are
+`nodalia_theme::enterprise`, shared with Ágora, never copied here. Home is the only page of
+its own.
+`nodalia-theme` comes from getnodalia/nodalia-design, pinned by `rev` with the `egui`, `creator`
+and `enterprise` features. It supplies the palette (`Accent::Hito`), islands, buttons, fields,
+window controls and icons. Never copy NDL into this repository. A missing component goes to
 nodalia-design through its own pull request first. NDL window controls are drawn on Linux only
 (unless the person picks the system's own in Preferences). macOS and Windows keep native
 controls. The hamburger menu holds Preferences, Keyboard shortcuts, About and Log out, and the

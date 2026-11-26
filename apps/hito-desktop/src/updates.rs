@@ -27,7 +27,9 @@ pub struct Runtime {
 impl Default for Runtime {
     fn default() -> Self {
         Self {
-            updater: Updater::new(APP).with_accent(ACCENT),
+            updater: Updater::new(APP)
+                .with_accent(ACCENT)
+                .with_style(nodalia_update::egui::Style::Enterprise),
             startup: false,
             manual: false,
         }

@@ -1,13 +1,13 @@
 [Desktop Entry]
 Type=Application
 Name=Hito
-GenericName=Team chat
-GenericName[es]=Chat de equipo
-Comment=Open source, self-hosted team chat
-Comment[es]=Chat de equipo de código abierto y alojado por ti
+GenericName=Work tracker
+GenericName[es]=Seguimiento de trabajo
+Comment=Open source, self-hosted work tracker for companies
+Comment[es]=Seguimiento de trabajo para empresas, de código abierto y alojado por ti
 Exec=hito
 Icon=dev.danielmiguelt.Hito
 Terminal=false
-Categories=Network;InstantMessaging;Chat;
-Keywords=chat;messages;team;channels;
+Categories=Office;ProjectManagement;
+Keywords=tasks;projects;milestones;board;team;
 StartupWMClass=dev.danielmiguelt.Hito
