@@ -60,13 +60,11 @@ pub struct Toast {
     pub until: f64,
 }
 
-/// The pages of the File view (Home, Preferences and the rest), drawn over the window.
+/// The pages drawn over the whole window: for now only Home (start a project from a template,
+/// recent projects). Preferences, shortcuts and About are dialogs, as in the rest of the suite.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Backstage {
     Home,
-    Preferences,
-    Shortcuts,
-    About,
 }
 
 /// The open task's fields as they are being edited, saved together.
@@ -269,9 +267,9 @@ impl Action {
             "new-task" => Action::NewTaskDialog,
             "new-project" => Action::Dialog(Dialog::new_project()),
             "home" => Action::Backstage(Some(Backstage::Home)),
-            "preferences" => Action::Backstage(Some(Backstage::Preferences)),
-            "shortcuts" => Action::Backstage(Some(Backstage::Shortcuts)),
-            "about" => Action::Backstage(Some(Backstage::About)),
+            "preferences" => Action::Dialog(Dialog::Preferences),
+            "shortcuts" => Action::Dialog(Dialog::Shortcuts),
+            "about" => Action::Dialog(Dialog::About),
             "updates" => Action::CheckForUpdates,
             "overview" => Action::ShowPage(Page::Overview),
             "my-tasks" => Action::ShowPage(Page::MyTasks),

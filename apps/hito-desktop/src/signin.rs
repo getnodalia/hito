@@ -1,8 +1,9 @@
 //! The first screen: which server, and sign in or create an account.
 
-use egui::{Align, Key, Layout, RichText, TextEdit, Ui, UiBuilder};
+use egui::{Align, Key, Layout, RichText, Ui};
 use hito_protocol::Registration;
-use nodalia_theme::creator::{self as cr, layout, Look};
+use nodalia_theme::creator::{self as cr, Look};
+use nodalia_theme::enterprise::{self as ent, field, field_label, status_line};
 use nodalia_theme::font_size;
 use nodalia_theme::for_egui::color;
 
@@ -49,11 +50,9 @@ pub fn show(ui: &mut Ui, app: &mut App) -> Vec<Action> {
     let mut actions = Vec::new();
     let ctx = ui.ctx().clone();
     let (look, mode) = app.look(&ctx);
-    let full = ui.max_rect();
-    ui.painter()
-        .rect_filled(full, 0.0, color(look.palette.surface_window));
+    let full = ent::window_surface(ui, &look);
 
-    let bar = full.with_max_y(full.top() + layout::APP_BAR);
+    let bar = full.with_max_y(full.top() + ent::layout::APP_BAR);
     let ndl = app.ndl_controls();
     if chrome::drags_window(ndl) {
         chrome::drag_area(ui, bar);
@@ -63,41 +62,26 @@ pub fn show(ui: &mut Ui, app: &mut App) -> Vec<Action> {
     }
 
     let mut remember = app.settings.remember;
-    let card_width = 380.0;
     let tall = matches!(&app.screen, Screen::SignIn(form) if form.register);
     let card_height = if tall { 720.0 } else { 600.0 };
     let body = egui::Rect::from_min_max(egui::pos2(full.left(), bar.bottom()), full.max);
-    ui.scope_builder(UiBuilder::new().max_rect(body), |ui| {
-        egui::ScrollArea::vertical()
-            .auto_shrink([false, false])
-            .show(ui, |ui| {
-                let side = ((ui.available_width() - card_width) / 2.0).max(8.0);
-                ui.add_space(((body.height() - card_height) / 2.0).max(8.0));
-                ui.horizontal(|ui| {
-                    ui.add_space(side);
-                    ui.vertical(|ui| match &mut app.screen {
-                        Screen::Restoring => {
-                            cr::island(&look).inner_margin(24).show(ui, |ui| {
-                                ui.set_width(card_width - 48.0);
-                                ui.vertical_centered(|ui| {
-                                    view::logo(ui, &look, 64.0);
-                                    ui.add_space(12.0);
-                                    ui.spinner();
-                                    ui.label(
-                                        RichText::new(tr("Connecting…"))
-                                            .color(color(look.palette.text_secondary)),
-                                    );
-                                });
-                            });
-                        }
-                        Screen::SignIn(form) => {
-                            form_card(ui, &look, form, &mut remember, card_width, &mut actions);
-                        }
-                        Screen::Main(_) => {}
-                    });
+    ent::sign_in_page(ui, body, card_height, |ui| match &mut app.screen {
+        Screen::Restoring => {
+            ent::sign_in_card(ui, &look, |ui| {
+                ui.vertical_centered(|ui| {
+                    view::logo(ui, &look, 64.0);
+                    ui.add_space(12.0);
+                    ui.spinner();
+                    ui.label(
+                        RichText::new(tr("Connecting…")).color(color(look.palette.text_secondary)),
+                    );
                 });
-                ui.add_space(16.0);
             });
+        }
+        Screen::SignIn(form) => {
+            form_card(ui, &look, form, &mut remember, &mut actions);
+        }
+        Screen::Main(_) => {}
     });
     if remember != app.settings.remember {
         app.settings.remember = remember;
@@ -115,33 +99,22 @@ fn form_card(
     look: &Look,
     form: &mut Form,
     remember: &mut bool,
-    width: f32,
     actions: &mut Vec<Action>,
 ) {
     let p = &look.palette;
-    cr::island(look).inner_margin(24).show(ui, |ui| {
-        ui.set_width(width - 48.0);
-        ui.vertical_centered(|ui| {
-            view::logo(ui, look, 72.0);
-            ui.add_space(8.0);
-            let title = if form.register {
-                tr("Create an account")
-            } else {
-                tr("Sign in to Hito")
-            };
-            ui.label(
-                RichText::new(title)
-                    .size(font_size::TITLE)
-                    .strong()
-                    .color(color(p.text_primary)),
-            );
-            ui.label(
-                RichText::new(tr("Tasks, milestones and progress for your company, on a server you run yourself."))
-                    .size(font_size::SMALL)
-                    .color(color(p.text_secondary)),
-            );
-        });
-        ui.add_space(16.0);
+    ent::sign_in_card(ui, look, |ui| {
+        let title = if form.register {
+            tr("Create an account")
+        } else {
+            tr("Sign in to Hito")
+        };
+        ent::sign_in_head(
+            ui,
+            look,
+            &crate::icon::texture(ui.ctx()),
+            title,
+            tr("Tasks, milestones and progress for your company, on a server you run yourself."),
+        );
 
         if let Some(notice) = &form.notice {
             status_line(ui, look, notice, false);
@@ -187,7 +160,8 @@ fn form_card(
         };
         let submitted = password.lost_focus() && ui.input(|i| i.key_pressed(Key::Enter));
         ui.with_layout(Layout::top_down(Align::Center), |ui| {
-            let button = cr::primary_button_min(ui, look, label, ready, width - 48.0);
+            let button =
+                cr::primary_button_min(ui, look, label, ready, ent::layout::SIGN_IN - 48.0);
             if (button.clicked() || submitted) && ready {
                 actions.push(Action::SignIn);
             }
@@ -240,52 +214,4 @@ fn server_status(ui: &mut Ui, look: &Look, form: &Form) {
         Some(Err(e)) => status_line(ui, look, e, true),
         None => {}
     }
-}
-
-fn field_label(ui: &mut Ui, look: &Look, text: &str) {
-    ui.add_space(6.0);
-    ui.label(
-        RichText::new(text)
-            .size(font_size::SMALL)
-            .color(color(look.palette.text_secondary)),
-    );
-}
-
-fn field(
-    ui: &mut Ui,
-    look: &Look,
-    text: &mut String,
-    hint: &str,
-    password: bool,
-) -> egui::Response {
-    cr::field_frame(look)
-        .inner_margin(egui::Margin::symmetric(8, 0))
-        .show(ui, |ui| {
-            ui.add(
-                TextEdit::singleline(text)
-                    .frame(egui::Frame::NONE)
-                    .align(egui::Align2::LEFT_CENTER)
-                    .hint_text(hint)
-                    .password(password)
-                    .desired_width(ui.available_width()),
-            )
-        })
-        .inner
-}
-
-pub fn status_line(ui: &mut Ui, look: &Look, text: &str, danger: bool) {
-    let p = &look.palette;
-    let (fg, bg) = if danger {
-        (p.status_danger_fg, p.status_danger_bg)
-    } else {
-        (p.status_info_fg, p.status_info_bg)
-    };
-    egui::Frame::NONE
-        .fill(color(bg))
-        .corner_radius(8)
-        .inner_margin(egui::Margin::symmetric(8, 6))
-        .show(ui, |ui| {
-            ui.set_width(ui.available_width());
-            ui.label(RichText::new(text).size(font_size::SMALL).color(color(fg)));
-        });
 }

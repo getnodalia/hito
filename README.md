@@ -40,7 +40,7 @@ tasks with assignees, priorities, due dates, labels, checklists and comments, a 
 activity log and an overview of how far every project has come. It runs on a server you run
 yourself: one Rust binary with a SQLite file, no outside service. The desktop app is native
 (egui, no Electron, no Chromium, no web view) for Linux, macOS and Windows, and belongs to the
-Office suite of Nodalia Design.
+Enterprise suite of Nodalia Design, with Ágora.
 
 What your team writes is **end-to-end encrypted** with MLS (RFC 9420): task titles, descriptions,
 checklists, labels, comments and milestone names reach the server only as ciphertext.
@@ -105,8 +105,8 @@ tasks as you.
 - **Integrations**: personal API tokens (`hito_pat_…`) for scripts and other apps, and webhooks
   that POST every change, signed with HMAC-SHA256, to an address such as an Ágora channel. A
   webhook carries only what the server already sees, never task text.
-- **Desktop app**: Nodalia Design (Office suite) with a File view for Home, Preferences, shortcuts
-  and About; light, dark and high-contrast themes, reduced motion, keyboard shortcuts, Spanish and
+- **Desktop app**: Nodalia Design (Enterprise suite) with a Home page and dialogs for Preferences,
+  shortcuts and About; light, dark and high-contrast themes, reduced motion, keyboard shortcuts, Spanish and
   English, the global menu over D-Bus on Linux, NDL window controls on Linux and native ones on
   macOS and Windows.
 

@@ -11,8 +11,10 @@ Foundation's `rust-gate`, `git-sources` and `agents-check` workflows, pinned by 
 
 ## Desired state
 
-Office suite: the File view (`office::file_view`) holds Home with project templates and
-recents, Preferences, shortcuts and About. Released through Foundation's `release-tag`/`release-publish` with release notes, packages for
+Enterprise suite: the window shell, top bar, sidebar, workspace switcher, account card, sign-in,
+integration windows, About and update window are `nodalia_theme::enterprise`, shared with Ágora;
+Home (project templates and recents) is the one page of its own, and Preferences, shortcuts and
+About are dialogs. Released through Foundation's `release-tag`/`release-publish` with release notes, packages for
 Linux, macOS (DMG with its own install window) and Windows, the shared in-app updater
 (`nodalia-update`), and the Linux global menu over D-Bus.
 
